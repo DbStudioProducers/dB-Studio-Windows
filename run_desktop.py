@@ -75,36 +75,38 @@ class ChannelStrip(tk.Frame):
                                      activebackground=RED, relief="flat",
                                      font=("Segoe UI", 8, "bold"), cursor="hand2")
         self.mute_button.pack(fill="x", padx=2, pady=(5, 2), ipady=5)
-        self.solo_button = tk.Button(self, text="SOLO", command=self.toggle_solo,
-                                     bg="#343941", fg=TEXT,
-                                     activebackground="#59616b", relief="flat",
-                                     font=("Segoe UI", 8, "bold"), cursor="hand2")
-        self.solo_button.pack(fill="x", padx=2, pady=2, ipady=4)
-
-        self.meter = tk.Canvas(self, bg="#0a0c0e", width=19, height=160,
-                               highlightthickness=1, highlightbackground="#30363b")
-        self.meter.pack(fill="both", expand=True, padx=7, pady=(8, 3))
-        self.meter.create_rectangle(3, 3, 8, 155, fill="#202b22", outline="")
-        self.meter.create_rectangle(11, 3, 16, 155, fill="#202b22", outline="")
-        self.meter_left = self.meter.create_rectangle(3, 155, 8, 155, fill=GREEN, outline="")
-        self.meter_right = self.meter.create_rectangle(11, 155, 16, 155, fill=GREEN, outline="")
+        self.diagonal = tk.Canvas(self, bg=BG, height=120, highlightthickness=0)
+        self.diagonal.pack(fill="both", expand=True, padx=1, pady=(0, 1))
+        self.diagonal.bind("<Configure>", self.draw_diagonal)
+        self.meter_fader = tk.Frame(self, bg=BG, height=255)
+        self.meter_fader.pack(fill="x", side="bottom", padx=2, pady=(2, 0))
+        self.meter_fader.pack_propagate(False)
+        self.meter = tk.Canvas(self.meter_fader, bg="#0a0c0e", width=25, highlightthickness=0)
+        self.meter.pack(side="right", fill="y", padx=(0, 1))
+        self.meter.create_rectangle(2, 2, 7, 250, fill="#202b22", outline="")
+        self.meter.create_rectangle(10, 2, 15, 250, fill="#202b22", outline="")
+        self.meter_left = self.meter.create_rectangle(2, 250, 7, 250, fill=GREEN, outline="")
+        self.meter_right = self.meter.create_rectangle(10, 250, 15, 250, fill=GREEN, outline="")
         self.meter_ticks()
-
         self.level_var = tk.DoubleVar(value=.72)
-        self.level_scale = tk.Scale(self, variable=self.level_var, from_=1.0,
+        self.level_scale = tk.Scale(self.meter_fader, variable=self.level_var, from_=1.0,
                                     to=0.0, resolution=.01, orient="vertical",
-                                    showvalue=False, sliderlength=22, width=17,
+                                    showvalue=False, sliderlength=24, width=19,
                                     bg=BG, fg=TEXT, troughcolor="#3b4249",
                                     activebackground="#c4c9ce", highlightthickness=0,
                                     bd=0, command=self.on_level)
-        self.level_scale.pack(fill="y", expand=True, pady=(0, 1))
-        self.value_label = tk.Label(self, text="-2.9 dB", bg=BG, fg=MUTED,
-                                    font=("Segoe UI", 7))
+        self.level_scale.pack(side="left", fill="y", expand=True)
+        self.value_label = tk.Label(self, text="-2.9 dB", bg=BG, fg=MUTED, font=("Segoe UI", 7))
         self.value_label.pack(fill="x", pady=(0, 1))
 
     def meter_ticks(self):
-        for y in (25, 52, 79, 106, 133):
-            self.meter.create_line(0, y, 19, y, fill="#394149")
+        for y in (42, 84, 126, 168, 210):
+            self.meter.create_line(0, y, 17, y, fill="#394149")
+
+    def draw_diagonal(self, event):
+        self.diagonal.delete("all")
+        self.diagonal.create_line(0, event.height-4, event.width-2, 18, fill="#806b00", width=1)
+        self.diagonal.create_line(0, event.height-4, event.width-2, event.height-4, fill="#30363b", width=1)
 
     def data(self):
         return self.app.channel_data(self.channel)
@@ -116,9 +118,6 @@ class ChannelStrip(tk.Frame):
         self.name_button.configure(text=d["name"])
         self.mute_button.configure(bg=RED if d["mute"] else "#561512",
                                    text="MUTED" if d["mute"] else "MUTE")
-        self.solo_button.configure(bg=YELLOW if d["solo"] else "#343941",
-                                   fg="#171717" if d["solo"] else TEXT,
-                                   text="SOLO ON" if d["solo"] else "SOLO")
         self.value_label.configure(text=self.db_text(d["volume"]))
         self.draw_meter(0 if d["mute"] else self.app.meter_value(self.channel))
 
@@ -129,11 +128,11 @@ class ChannelStrip(tk.Frame):
         return "%.1f dB" % (20 * math.log10(value))
 
     def draw_meter(self, value):
-        height = int(max(0, min(1, value)) * 152)
-        top = 155 - height
+        height = int(max(0, min(1, value)) * 246)
+        top = 250 - height
         color = RED if value > .88 else YELLOW if value > .70 else GREEN
-        self.meter.coords(self.meter_left, 3, top, 8, 155)
-        self.meter.coords(self.meter_right, 11, top, 16, 155)
+        self.meter.coords(self.meter_left, 2, top, 7, 250)
+        self.meter.coords(self.meter_right, 10, top, 15, 250)
         self.meter.itemconfigure(self.meter_left, fill=color)
         self.meter.itemconfigure(self.meter_right, fill=color)
 
@@ -180,8 +179,8 @@ class MixerApp:
         self.root = root
         self.root.title("dB Studio | Digital Monitor Mixer")
         self.root.configure(bg=BG)
-        self.root.geometry("1440x850")
-        self.root.minsize(1120, 680)
+        self.root.geometry("1280x720")
+        self.root.minsize(1024, 600)
         self.mix_index = 0
         self.bank = 1
         self.demo_signal = True
@@ -253,18 +252,19 @@ class MixerApp:
             self.strips.append(strip)
         self.channel_area.grid_rowconfigure(0, weight=1)
 
-        self.side = tk.Frame(content, bg="#15181c", width=154)
+        self.side = tk.Frame(content, bg="#15181c", width=190)
         self.side.pack(side="right", fill="y", padx=(4, 2), pady=3)
         self.side.pack_propagate(False)
-        self.side_button("Fine", self.fine, "#30343a")
+        self.side_button("Fine", self.fine, "#292d33", GREEN)
         self.side_button("Mute Enable", self.mute_all, RED)
-        self.side_button("Snd->Fader", self.send_to_fader, "#30343a")
+        self.side_button("Snd->Fader", self.send_to_fader, "#292d33")
         tk.Label(self.side, text="CHANNEL BANK", bg="#15181c", fg=MUTED,
-                 font=("Segoe UI", 7, "bold")).pack(fill="x", pady=(9, 2))
-        self.side_button("Ch 1–16", lambda: self.change_bank(1), "#30343a", GREEN)
-        self.side_button("Ch 17–32", lambda: self.change_bank(2), "#30343a", GREEN)
+                 font=("Segoe UI", 7, "bold")).pack(fill="x", pady=(5, 1))
+        self.side_button("Ch 1–16", lambda: self.change_bank(1), "#292d33", GREEN)
+        self.side_button("Ch 17–32", lambda: self.change_bank(2), "#292d33", GREEN)
+        self.side_button("Ch 33–48", lambda: self.change_bank(2), "#292d33", GREEN)
         tk.Label(self.side, text="MONITOR MIXES", bg="#15181c", fg=MUTED,
-                 font=("Segoe UI", 7, "bold")).pack(fill="x", pady=(10, 2))
+                 font=("Segoe UI", 7, "bold")).pack(fill="x", pady=(5, 1))
         self.mix_buttons = []
         for i in range(16):
             b = tk.Button(self.side, text="Mix %02d" % (i + 1),
