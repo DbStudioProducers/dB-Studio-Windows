@@ -20,14 +20,14 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt pyinstaller==6.11.1
-      - name: Executar testes
+      - name: Executar testes do motor
         run: python -m unittest discover -s tests -v
-      - name: Compilar executável
-        run: pyinstaller --noconfirm --clean --onedir --name "dB Studio Virtual Lab" run_virtual_lab.py
+      - name: Compilar interface gráfica sem terminal
+        run: pyinstaller --noconfirm --clean --onedir --windowed --name "dB Studio 0.4 Desktop Preview" run_desktop.py
       - name: Publicar artefato
         uses: actions/upload-artifact@v4
         with:
-          name: dB-Studio-Windows-Virtual-Lab
-          path: dist/dB Studio Virtual Lab/
+          name: dB-Studio-0.4-Desktop-Preview
+          path: dist/dB Studio 0.4 Desktop Preview/
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 30
