@@ -7,6 +7,7 @@ import os
 import random
 import time
 import tkinter as tk
+from db_studio.ui_screens import install as install_screens, open_users, open_settings, open_fx, open_routing
 from tkinter import filedialog, messagebox, simpledialog
 
 BG = "#101215"
@@ -186,6 +187,7 @@ class MixerApp:
         self.demo_signal = True
         self.demo_phase = 0
         self.state = self.load_state()
+        install_screens(self)
         self.strips = []
         self.build_ui()
         self.refresh_all()
@@ -223,7 +225,7 @@ class MixerApp:
                  font=("Segoe UI", 9, "bold")).pack(side="left")
         nav = tk.Frame(top, bg="#050607")
         nav.pack(side="right", padx=12)
-        for label in ("▥  Mixer", "▦  Devices", "FX", "▱  Routing", "⚙  Settings"):
+        for label in ("▥  Mixer", "▦  Devices", "FX", "▱  Routing", "⚙  Settings", "♙  Users"):
             tk.Button(nav, text=label, bg="#050607", fg=TEXT,
                       activebackground="#252a30", activeforeground=CYAN,
                       relief="flat", font=("Segoe UI", 9),
@@ -366,8 +368,14 @@ class MixerApp:
             return
         if "Devices" in label:
             self.open_devices()
-            return
-        messagebox.showinfo("dB Studio", "%s será habilitado nas próximas etapas.\nO mixer principal permanece disponível." % label)
+        elif "FX" in label:
+            open_fx(self)
+        elif "Routing" in label:
+            open_routing(self)
+        elif "Settings" in label:
+            open_settings(self)
+        elif "Users" in label:
+            open_users(self)
 
     def demo_devices(self):
         if not hasattr(self, "_demo_devices"):
