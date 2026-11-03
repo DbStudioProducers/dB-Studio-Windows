@@ -21,7 +21,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt pyinstaller==6.11.1
       - name: Verificar sintaxe Python antes dos testes e da compilação
-        run: python -m py_compile run_desktop.py run_virtual_lab.py
+        run: python -m py_compile run_desktop.py run_virtual_lab.py db_studio/ui_screens.py
       - name: Executar testes do motor
         run: python -m unittest discover -s tests -v
       - name: Compilar interface gráfica sem terminal
