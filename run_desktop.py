@@ -5,6 +5,7 @@ import json
 import math
 import os
 import random
+import time
 import tkinter as tk
 from tkinter import filedialog, messagebox, simpledialog
 
@@ -223,7 +224,7 @@ class MixerApp:
                  font=("Segoe UI", 9, "bold")).pack(side="left")
         nav = tk.Frame(top, bg="#050607")
         nav.pack(side="right", padx=12)
-        for label in ("▥  Mixer", "▦  Inputs", "FX", "▱  Routing", "⚙  Settings"):
+        for label in ("▥  Mixer", "▦  Devices", "FX", "▱  Routing", "⚙  Settings"):
             tk.Button(nav, text=label, bg="#050607", fg=TEXT,
                       activebackground="#252a30", activeforeground=CYAN,
                       relief="flat", font=("Segoe UI", 9),
@@ -361,8 +362,140 @@ class MixerApp:
     def send_to_fader(self):
         self.set_status("Snd->Fader: modo de envio será integrado ao roteamento")
     def nav_action(self, label):
-        if "Mixer" not in label:
-            messagebox.showinfo("dB Studio", "%s será habilitado nas próximas etapas.\nO mixer principal permanece disponível." % label)
+        if "Mixer" in label:
+            return
+        if "Devices" in label:
+            self.open_devices()
+            return
+        messagebox.showinfo("dB Studio", "%s será habilitado nas próximas etapas.\nO mixer principal permanece disponível." % label)
+
+    def demo_devices(self):
+        if not hasattr(self, "_demo_devices"):
+            now = time.time()
+            self._demo_devices = []
+            for n, sig, bat, age, status in [
+                (1, -32, 92, 754, "Online"), (2, -36, 85, 917, "Online"),
+                (3, -40, 76, 1041, "Online"), (4, -52, 43, 1211, "Warning"),
+                (5, None, None, None, "Offline")]:
+                self._demo_devices.append({
+                    "id": "DEV-%03d" % n, "name": "Monitor %02d - In Ear" % n,
+                    "signal": sig, "battery": bat, "started": now-age if age else None,
+                    "status": status, "aux": {"master": .75, "channels": {
+                        str(i): {"volume": .72, "pan": 0.0, "mute": False}
+                        for i in range(1, 33)}}})
+        return self._demo_devices
+
+    def open_devices(self):
+        if hasattr(self, "devices_window") and self.devices_window.winfo_exists():
+            self.devices_window.deiconify()
+            self.devices_window.lift()
+            return
+        self.devices_window = tk.Toplevel(self.root)
+        win = self.devices_window
+        win.title("dB Studio | Devices")
+        win.geometry("1050x620")
+        win.configure(bg=BG)
+        tk.Label(win, text="CONNECTED DEVICES", bg="#080a0c", fg=TEXT,
+                 font=("Segoe UI", 16, "bold"), pady=15).pack(fill="x")
+        tk.Label(win, text="DEMONSTRAÇÃO — dispositivos fictícios; descoberta real ainda não conectada",
+                 bg=BG, fg=YELLOW, font=("Segoe UI", 8, "bold")).pack(anchor="w", padx=14, pady=6)
+        head = tk.Frame(win, bg=SURFACE2)
+        head.pack(fill="x", padx=12, pady=(8, 2))
+        for title, width in (("DEVICE NAME", 31), ("SIGNAL", 12), ("BATTERY", 12), ("CONNECTED", 14), ("STATUS", 14), ("ACTION", 12)):
+            tk.Label(head, text=title, width=width, anchor="w", bg=SURFACE2,
+                     fg=MUTED, font=("Segoe UI", 8, "bold"), padx=4, pady=9).pack(side="left")
+        self.device_rows = tk.Frame(win, bg=BG)
+        self.device_rows.pack(fill="x", padx=12)
+        self.device_info = tk.Label(win, text="Selecione um dispositivo para ver detalhes.",
+                                    bg=SURFACE, fg=TEXT, font=("Segoe UI", 10),
+                                    anchor="w", padx=15, pady=18)
+        self.device_info.pack(fill="x", padx=12, pady=12)
+        self.selected_device_id = None
+        self.refresh_devices()
+
+    def refresh_devices(self):
+        if not hasattr(self, "device_rows") or not self.device_rows.winfo_exists():
+            return
+        for w in self.device_rows.winfo_children():
+            w.destroy()
+        for dev in self.demo_devices():
+            active = dev["status"] != "Offline"
+            elapsed = self.duration_text(time.time()-dev["started"]) if active else "--:--:--"
+            vals = (dev["name"], (str(dev["signal"])+" dB") if dev["signal"] is not None else "N/A",
+                    (str(dev["battery"])+"%") if dev["battery"] is not None else "N/A",
+                    elapsed, dev["status"])
+            row = tk.Frame(self.device_rows, bg=SURFACE, highlightbackground=BORDER, highlightthickness=1)
+            row.pack(fill="x", pady=2)
+            for i, (value, width) in enumerate(zip(vals, (31,12,12,14,14))):
+                color = GREEN if value == "Online" else YELLOW if value == "Warning" else MUTED if value == "Offline" else TEXT
+                tk.Label(row, text=value, width=width, anchor="w", bg=SURFACE,
+                         fg=color, font=FONT, padx=4, pady=10).pack(side="left")
+            tk.Button(row, text="OPEN", command=lambda d=dev: self.select_device(d),
+                      bg="#174b65", fg="white", relief="flat",
+                      font=("Segoe UI", 8, "bold"), padx=10).pack(side="left", padx=5, pady=4)
+        self.root.after(1000, self.refresh_devices)
+
+    @staticmethod
+    def duration_text(seconds):
+        if seconds is None:
+            return "--:--:--"
+        seconds = max(0, int(seconds))
+        return "%02d:%02d:%02d" % (seconds//3600, (seconds%3600)//60, seconds%60)
+
+    def select_device(self, dev):
+        self.selected_device_id = dev["id"]
+        signal = str(dev["signal"]) + " dB" if dev["signal"] is not None else "N/A"
+        battery = str(dev["battery"]) + "%" if dev["battery"] is not None else "N/A (not reported)"
+        elapsed = self.duration_text(time.time()-dev["started"]) if dev["started"] else "Not connected"
+        self.device_info.configure(text="%s  |  %s  |  Signal: %s  |  Battery: %s  |  Connected: %s" %
+                                   (dev["name"], dev["status"], signal, battery, elapsed) +
+                                   "     [OPEN AUX abaixo]")
+        tk.Button(self.device_info.master, text="OPEN INDIVIDUAL AUX",
+                  command=lambda d=dev: self.open_device_aux(d), bg=CYAN,
+                  fg="#061719", relief="flat", font=("Segoe UI", 9, "bold"),
+                  padx=12, pady=7).pack(anchor="w", padx=15, pady=(0, 12))
+
+    def open_device_aux(self, dev):
+        win = tk.Toplevel(self.devices_window)
+        win.title("dB Studio | Aux — " + dev["name"])
+        win.geometry("850x570")
+        win.configure(bg=BG)
+        tk.Label(win, text=dev["name"] + "  |  INDIVIDUAL AUX",
+                 bg="#080a0c", fg=TEXT, font=("Segoe UI", 14, "bold"),
+                 pady=14).pack(fill="x")
+        tk.Label(win, text="CONTROLES DEMONSTRATIVOS — alterações locais, sem transmissão ao dispositivo",
+                 bg=BG, fg=YELLOW, font=("Segoe UI", 8, "bold")).pack(anchor="w", padx=12, pady=6)
+        master = tk.Frame(win, bg=SURFACE, padx=10, pady=8)
+        master.pack(fill="x", padx=10, pady=6)
+        tk.Label(master, text="AUX MASTER", bg=SURFACE, fg=TEXT).pack(side="left")
+        mv = tk.DoubleVar(value=dev["aux"]["master"])
+        tk.Scale(master, variable=mv, from_=1, to=0, orient="horizontal",
+                 length=260, bg=SURFACE, fg=TEXT, troughcolor="#3b4249",
+                 highlightthickness=0, command=lambda v: dev["aux"].update({"master":float(v)})).pack(side="left", padx=12)
+        strips = tk.Frame(win, bg=BG)
+        strips.pack(fill="both", expand=True, padx=8, pady=8)
+        for ch in range(1, 9):
+            data = dev["aux"]["channels"][str(ch)]
+            box = tk.Frame(strips, bg=SURFACE, highlightbackground=BORDER, highlightthickness=1, padx=4)
+            box.pack(side="left", fill="both", expand=True, padx=2)
+            tk.Label(box, text="CH %02d" % ch, bg=SURFACE, fg=GREEN,
+                     font=("Segoe UI", 9, "bold")).pack(pady=6)
+            mute = tk.BooleanVar(value=data["mute"])
+            tk.Checkbutton(box, text="MUTE", variable=mute, bg=SURFACE, fg=RED,
+                           selectcolor=SURFACE2, activebackground=SURFACE,
+                           command=lambda d=data, v=mute: d.update({"mute":v.get()})).pack()
+            tk.Label(box, text="PAN", bg=SURFACE, fg=MUTED).pack(pady=(8,0))
+            pan = tk.DoubleVar(value=data["pan"])
+            tk.Scale(box, variable=pan, from_=-1, to=1, resolution=.01,
+                     orient="horizontal", showvalue=False, length=75, bg=SURFACE,
+                     fg=TEXT, troughcolor="#3b4249", highlightthickness=0,
+                     command=lambda v,d=data: d.update({"pan":float(v)})).pack()
+            tk.Label(box, text="LEVEL", bg=SURFACE, fg=MUTED).pack(pady=(8,0))
+            level = tk.DoubleVar(value=data["volume"])
+            tk.Scale(box, variable=level, from_=1, to=0, orient="vertical",
+                     showvalue=False, length=220, bg=SURFACE, fg=TEXT,
+                     troughcolor="#3b4249", highlightthickness=0,
+                     command=lambda v,d=data: d.update({"volume":float(v)})).pack(fill="y", expand=True)
     def toggle_demo(self):
         self.demo_signal = not self.demo_signal
         self.set_status("Sinal de teste " + ("ativado" if self.demo_signal else "desativado"))
