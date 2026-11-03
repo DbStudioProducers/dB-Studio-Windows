@@ -64,7 +64,7 @@ class ChannelStrip(tk.Frame):
         self.pan_var = tk.DoubleVar(value=0)
         self.pan_scale = tk.Scale(pan_frame, variable=self.pan_var, from_=-1,
                                   to=1, resolution=.01, orient="horizontal",
-                                  showvalue=False, sliderlength=10, height=18,
+                                  showvalue=False, sliderlength=10,
                                   bg=BG, fg=TEXT, troughcolor="#41484f",
                                   highlightthickness=0, bd=0,
                                   command=self.on_pan)
