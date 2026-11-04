@@ -1,14 +1,21 @@
 #include "../Source/AuxAssignmentRegistry.h"
-#include <cassert>
+#include <iostream>
 #include <string>
 #include <cstdio>
 #include <fstream>
+
+#define CHECK(condition) do { \
+    if (!(condition)) { \
+        std::cerr << "FAIL: " << #condition << " at line " << __LINE__ << std::endl; \
+        return 1; \
+    } \
+} while (false)
 
 int main() {
     AuxAssignmentRegistry registry;
     AuxAssignmentRegistry::Assignment found;
 
-    assert(registry.assignedCount() == 0);
+    CHECK(registry.assignedCount() == 0);
     assert(registry.assign("", "Sem ID", 0) == AuxAssignmentRegistry::Result::invalidDeviceId);
     assert(registry.assign("device-a", "Guitarra", 16) == AuxAssignmentRegistry::Result::invalidMix);
     assert(registry.assign("device-a", "Guitarra", 0) == AuxAssignmentRegistry::Result::success);
