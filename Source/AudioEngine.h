@@ -7,7 +7,8 @@ class AudioEngine final : public juce::AudioIODeviceCallback {
 public:
     static constexpr int kInputChannels = 32;
     static constexpr int kMixes = 16;
-    static constexpr int kOutputChannels = 32;
+    static constexpr int kOutputChannels = 32; // Logical AUX channels: 16 stereo buses.
+    static constexpr int kMaxBlockSize = 8192;
 
     AudioEngine();
     ~AudioEngine() override;
@@ -43,6 +44,11 @@ private:
     std::array<std::array<std::atomic<float>, kInputChannels>, kMixes> inputGains_{};
     std::array<std::array<std::atomic<float>, kInputChannels>, kMixes> inputPans_{};
     std::array<std::array<std::atomic<bool>, kInputChannels>, kMixes> inputMutes_{};
+
+    // Preallocated internal AUX buses. Each mix owns L/R buffers independent
+    // of the computer's physical output count. The network sender will consume
+    // these through a bounded real-time-safe queue in the next networking step.
+    std::array<std::array<float, kMaxBlockSize>, kOutputChannels> mixBusBuffers_{};
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AudioEngine)
 };
