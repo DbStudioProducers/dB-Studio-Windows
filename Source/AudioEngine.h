@@ -25,6 +25,12 @@ public:
 
     float inputPeak(int channel) const noexcept;
     float outputPeak(int mix) const noexcept;
+    void setMixInputGain(int mix, int input, float gain) noexcept;
+    void setMixInputPan(int mix, int input, float pan) noexcept;
+    void setMixInputMuted(int mix, int input, bool muted) noexcept;
+    float mixInputGain(int mix, int input) const noexcept;
+    float mixInputPan(int mix, int input) const noexcept;
+    bool mixInputMuted(int mix, int input) const noexcept;
     double sampleRate() const noexcept { return sampleRate_.load(); }
     int blockSize() const noexcept { return blockSize_.load(); }
 
@@ -34,7 +40,9 @@ private:
     std::array<std::atomic<float>, kMixes> outputPeaks_{};
     std::atomic<double> sampleRate_{0.0};
     std::atomic<int> blockSize_{0};
-    std::array<float, kMixes> masterGains_{};
+    std::array<std::array<std::atomic<float>, kInputChannels>, kMixes> inputGains_{};
+    std::array<std::array<std::atomic<float>, kInputChannels>, kMixes> inputPans_{};
+    std::array<std::array<std::atomic<bool>, kInputChannels>, kMixes> inputMutes_{};
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AudioEngine)
 };
