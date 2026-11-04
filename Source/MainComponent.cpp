@@ -7,6 +7,18 @@ const juce::Colour green{0xff43e638};
 const juce::Colour muted{0xff929ba3};
 }
 
+void LevelMeter::paint(juce::Graphics& g) {
+    auto bounds = getLocalBounds().toFloat();
+    g.setColour(juce::Colour(0xff30363b));
+    g.fillRoundedRectangle(bounds, 2.0f);
+    auto active = bounds.reduced(1.0f);
+    active.setWidth(active.getWidth() * level_);
+    if (level_ > 0.90f) g.setColour(juce::Colour(0xffef4444));
+    else if (level_ > 0.70f) g.setColour(juce::Colour(0xffffc247));
+    else g.setColour(green);
+    g.fillRoundedRectangle(active, 1.5f);
+}
+
 MainComponent::MainComponent() {
     setSize(1320, 850);
     title_.setText("dB STUDIO", juce::dontSendNotification);
@@ -28,6 +40,10 @@ MainComponent::MainComponent() {
         loadSelectedMix();
     };
     addAndMakeVisible(mixSelector_);
+
+    outputMeterLabel_.setColour(juce::Label::textColourId, muted);
+    addAndMakeVisible(outputMeterLabel_);
+    addAndMakeVisible(outputMeter_);
 
     devicesButton_.onClick = [this] {
         auto* selector = new juce::AudioDeviceSelectorComponent(
@@ -51,6 +67,7 @@ MainComponent::MainComponent() {
         label.setJustificationType(juce::Justification::centred);
         label.setColour(juce::Label::textColourId, green);
         channelGrid_.addAndMakeVisible(label);
+        channelGrid_.addAndMakeVisible(inputMeters_[static_cast<size_t>(i)]);
 
         auto& gain = gainSliders_[static_cast<size_t>(i)];
         gain.setSliderStyle(juce::Slider::LinearVertical);
@@ -134,6 +151,8 @@ void MainComponent::resized() {
     auto controls = area.removeFromTop(38);
     mixLabel_.setBounds(controls.removeFromLeft(130));
     mixSelector_.setBounds(controls.removeFromLeft(150));
+    outputMeterLabel_.setBounds(controls.removeFromLeft(62));
+    outputMeter_.setBounds(controls.removeFromLeft(110).reduced(2, 12));
     deviceSummary_.setBounds(controls);
     area.removeFromTop(12);
     auto gridArea = area.removeFromTop(590);
@@ -143,7 +162,8 @@ void MainComponent::resized() {
         const int col = i % 8, row = i / 8;
         auto cell = juce::Rectangle<int>(gridArea.getX() + col * (cellW + 3),
                                          gridArea.getY() + row * (cellH + 4), cellW, cellH);
-        channelLabels_[static_cast<size_t>(i)].setBounds(cell.removeFromTop(22));
+        channelLabels_[static_cast<size_t>(i)].setBounds(cell.removeFromTop(20));
+        inputMeters_[static_cast<size_t>(i)].setBounds(cell.removeFromTop(8).reduced(5, 0));
         muteButtons_[static_cast<size_t>(i)].setBounds(cell.removeFromBottom(24).reduced(8, 1));
         panSliders_[static_cast<size_t>(i)].setBounds(cell.removeFromBottom(22).reduced(5, 0));
         gainSliders_[static_cast<size_t>(i)].setBounds(cell.reduced(12, 0));
@@ -153,7 +173,12 @@ void MainComponent::resized() {
     footer_.setBounds(area);
 }
 
-void MainComponent::timerCallback() { refreshDeviceSummary(); }
+void MainComponent::timerCallback() {
+    for (int i = 0; i < AudioEngine::kInputChannels; ++i)
+        inputMeters_[static_cast<size_t>(i)].setLevel(engine_.inputPeak(i));
+    outputMeter_.setLevel(engine_.outputPeak(selectedMix_));
+    refreshDeviceSummary();
+}
 
 void MainComponent::loadSelectedMix() {
     for (int i = 0; i < AudioEngine::kInputChannels; ++i) {
