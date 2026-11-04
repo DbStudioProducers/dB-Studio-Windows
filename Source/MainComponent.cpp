@@ -19,7 +19,15 @@ void LevelMeter::paint(juce::Graphics& g) {
     g.fillRoundedRectangle(active, 1.5f);
 }
 
-MainComponent::MainComponent() {\n    assignmentFile_ = juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory)\n        .getChildFile("dB Studio").getChildFile("assignments.dbsaux");\n    assignmentFile_.getParentDirectory().createDirectory();\n    if (assignmentFile_.existsAsFile()) {\n        const auto loaded = assignments_.loadFromFile(assignmentFile_.getFullPathName().toStdString());\n        if (loaded != AuxAssignmentRegistry::Result::success)\n            status_.setText("AVISO: cadastro AUX salvo inválido; não foi carregado.", juce::dontSendNotification);\n    }
+MainComponent::MainComponent() {
+    assignmentFile_ = juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory)
+        .getChildFile("dB Studio").getChildFile("assignments.dbsaux");
+    assignmentFile_.getParentDirectory().createDirectory();
+    if (assignmentFile_.existsAsFile()) {
+        const auto loaded = assignments_.loadFromFile(assignmentFile_.getFullPathName().toStdString());
+        if (loaded != AuxAssignmentRegistry::Result::success)
+            status_.setText("AVISO: cadastro AUX salvo inválido; não foi carregado.", juce::dontSendNotification);
+    }
     setSize(1320, 850);
     title_.setText("dB STUDIO", juce::dontSendNotification);
     title_.setFont(juce::Font(27.0f, juce::Font::bold));
@@ -269,4 +277,9 @@ void MainComponent::refreshDeviceSummary() {
         + juce::String(engine_.blockSize()) + " samples | 16 AUX estéreo internos. Receptores Wi-Fi ainda não integrados. "
         "Saída física opcional para monitoração.");
 }
-\n\nbool MainComponent::persistAssignments() {\n    return assignments_.saveToFile(assignmentFile_.getFullPathName().toStdString())\n        == AuxAssignmentRegistry::Result::success;\n}\n
+
+
+bool MainComponent::persistAssignments() {
+    return assignments_.saveToFile(assignmentFile_.getFullPathName().toStdString())
+        == AuxAssignmentRegistry::Result::success;
+}
