@@ -1,6 +1,8 @@
 #include "../Source/AuxAssignmentRegistry.h"
 #include <cassert>
 #include <string>
+#include <cstdio>
+#include <fstream>
 
 int main() {
     AuxAssignmentRegistry registry;
@@ -35,5 +37,19 @@ int main() {
     assert(registry.assignedCount() == 16);
     assert(registry.findByMix(0, found) && found.deviceId == "device-new");
 
+    const std::string path = "dbstudio_aux_registry_test.dbsaux";
+    assert(registry.saveToFile(path) == AuxAssignmentRegistry::Result::success);
+    AuxAssignmentRegistry restored;
+    assert(restored.loadFromFile(path) == AuxAssignmentRegistry::Result::success);
+    assert(restored.assignedCount() == 16);
+    assert(restored.findByDevice("device-new", found));
+    assert(found.displayName == "Novo músico");
+    assert(found.mixIndex == 0);
+    { std::ofstream corrupt(path, std::ios::binary | std::ios::trunc);
+      corrupt << "DBSAUX1\n0\t4141\t4262\n0\t4343\t4464\n"; }
+    assert(restored.loadFromFile(path) == AuxAssignmentRegistry::Result::invalidData);
+    assert(restored.assignedCount() == 16);
+    assert(restored.findByDevice("device-new", found));
+    std::remove(path.c_str());
     return 0;
 }
