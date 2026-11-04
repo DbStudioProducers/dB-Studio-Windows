@@ -4,6 +4,8 @@
 #include <cstddef>
 #include <cstdio>
 #include <fstream>
+#include <filesystem>
+#include <system_error>
 #include <mutex>
 #include <string>
 #include <utility>
@@ -88,7 +90,18 @@ public:
             std::lock_guard<std::mutex> lock(mutex_);
             snapshot = assignments_;
         }
-        const std::string temporary = path + ".tmp";
+        // Interpret incoming paths as UTF-8 on every platform. On Windows,
+        // filesystem::path stores UTF-16 so non-ASCII account names remain valid.
+        const auto destination = std::filesystem::u8path(path);
+        auto temporary = destination;
+        temporary += std::filesystem::path::string_type{
+#ifdef _WIN32
+            L".tmp"
+#else
+            ".tmp"
+#endif
+        };
+        std::error_code filesystemError;
         {
             std::ofstream out(temporary, std::ios::binary | std::ios::trunc);
             if (!out) return Result::persistenceError;
@@ -99,15 +112,23 @@ public:
                 out << i << '\t' << encodeHex(a.deviceId) << '\t' << encodeHex(a.displayName) << '\n';
             }
             out.flush();
-            if (!out.good()) { out.close(); std::remove(temporary.c_str()); return Result::persistenceError; }
+            if (!out.good()) {
+                out.close();
+                std::filesystem::remove(temporary, filesystemError);
+                return Result::persistenceError;
+            }
         }
 #ifdef _WIN32
-        if (!MoveFileExA(temporary.c_str(), path.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
-            std::remove(temporary.c_str()); return Result::persistenceError;
+        if (!MoveFileExW(temporary.c_str(), destination.c_str(),
+                         MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
+            std::filesystem::remove(temporary, filesystemError);
+            return Result::persistenceError;
         }
 #else
-        if (std::rename(temporary.c_str(), path.c_str()) != 0) {
-            std::remove(temporary.c_str()); return Result::persistenceError;
+        std::filesystem::rename(temporary, destination, filesystemError);
+        if (filesystemError) {
+            std::filesystem::remove(temporary, filesystemError);
+            return Result::persistenceError;
         }
 #endif
         return Result::success;
@@ -115,7 +136,7 @@ public:
 
     // Loads transactionally: invalid files never partially modify the active registry.
     Result loadFromFile(const std::string& path) {
-        std::ifstream in(path, std::ios::binary);
+        std::ifstream in(std::filesystem::u8path(path), std::ios::binary);
         if (!in) return Result::persistenceError;
         std::string line;
         if (!std::getline(in, line) || line != "DBSAUX1") return Result::invalidData;
