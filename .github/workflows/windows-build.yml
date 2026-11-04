@@ -25,7 +25,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: dB-Studio-0.5.0-Native-Windows
-          path: build/Release/
+          path: build/dBStudio_artefacts/Release/
           if-no-files-found: error
           retention-days: 30
 
