@@ -24,6 +24,10 @@ USB and Ethernet are alternative input paths in the initial design, not automati
    ```
 CMake downloads the pinned JUCE 8.0.6 source during configuration.
 
+## Core device/AUX assignment
+
+A thread-safe native registry now enforces the individual-mode invariant: one stable device ID can own at most one AUX, and one AUX can belong to at most one device. Device display names can be edited without changing the stable identity. Disconnect/removal can release an assignment for reuse. This registry is a tested core component; the desktop Devices UI, receiver registration protocol and persistent connection history are still integration work.
+
 ## Current native foundation
 
 - Native JUCE desktop window and audio device selector.
