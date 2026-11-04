@@ -228,13 +228,14 @@ void MainComponent::promptAssignDevice() {
             const auto assignment = assignments_.assign(
                 id.toStdString(), name.toStdString(), static_cast<std::size_t>(mix));
             const bool ok = assignment == AuxAssignmentRegistry::Result::success;
+            const bool saved = !ok || persistAssignments();
             const auto message = ok ? "AUX exclusivo atribuído." :
                 assignment == AuxAssignmentRegistry::Result::deviceAlreadyAssigned ? "Dispositivo já possui um AUX." :
                 assignment == AuxAssignmentRegistry::Result::mixAlreadyAssigned ? "AUX já ocupado." :
                 assignment == AuxAssignmentRegistry::Result::invalidDeviceId ? "ID inválido." : "AUX inválido.";
             juce::AlertWindow::showMessageBoxAsync(
                 ok ? juce::MessageBoxIconType::InfoIcon : juce::MessageBoxIconType::WarningIcon,
-                "dB Studio", message);
+                "dB Studio", saved ? message : "AUX atribuído nesta sessão, mas falhou ao salvar no disco.");
             refreshDeviceSummary();
         }), true);
 }
@@ -253,9 +254,10 @@ void MainComponent::promptRenameDevice() {
             const auto name = safeDialog->getTextEditorContents("displayName").trim();
             const auto renameResult = assignments_.renameDevice(id.toStdString(), name.toStdString());
             const bool ok = renameResult == AuxAssignmentRegistry::Result::success;
+            const bool saved = !ok || persistAssignments();
             juce::AlertWindow::showMessageBoxAsync(
                 ok ? juce::MessageBoxIconType::InfoIcon : juce::MessageBoxIconType::WarningIcon,
-                "dB Studio", ok ? "Nome atualizado." : "Dispositivo não encontrado.");
+                "dB Studio", !ok ? "Dispositivo não encontrado." : saved ? "Nome atualizado." : "Nome alterado nesta sessão, mas falhou ao salvar no disco.");
             refreshDeviceSummary();
         }), true);
 }
