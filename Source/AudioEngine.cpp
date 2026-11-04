@@ -3,9 +3,14 @@
 #include <cmath>
 
 AudioEngine::AudioEngine() {
-    masterGains_.fill(0.65f);
     for (auto& peak : inputPeaks_) peak.store(0.0f);
     for (auto& peak : outputPeaks_) peak.store(0.0f);
+    for (int mix = 0; mix < kMixes; ++mix)
+        for (int input = 0; input < kInputChannels; ++input) {
+            inputGains_[static_cast<size_t>(mix)][static_cast<size_t>(input)].store(0.125f);
+            inputPans_[static_cast<size_t>(mix)][static_cast<size_t>(input)].store(0.0f);
+            inputMutes_[static_cast<size_t>(mix)][static_cast<size_t>(input)].store(false);
+        }
 }
 
 AudioEngine::~AudioEngine() { shutdown(); }
@@ -54,9 +59,8 @@ void AudioEngine::audioDeviceIOCallbackWithContext(const float* const* inputs, i
         peaks[static_cast<size_t>(channel)] = juce::FloatVectorOperations::findMinAndMax(inputs[channel], samples).getMagnitude();
     }
 
-    // Each stereo mix is rendered independently. Mix N maps to output channels 2N and 2N+1.
-    // With a stereo-only device, only mix 1 can be physically emitted; all other mixes remain
-    // available when a multichannel output device is selected.
+    // Every musician mix has its own gain, pan and mute state for each input.
+    // The callback performs no locks or memory allocation.
     for (int mix = 0; mix < kMixes; ++mix) {
         const int left = mix * 2;
         const int right = left + 1;
@@ -69,31 +73,46 @@ void AudioEngine::audioDeviceIOCallbackWithContext(const float* const* inputs, i
         for (int sample = 0; sample < samples; ++sample) {
             float l = 0.0f, r = 0.0f;
             for (int channel = 0; channel < availableInputs; ++channel) {
-                const float* source = inputs[channel];
-                if (source == nullptr) continue;
-                const float value = source[sample] * 0.125f;
-                l += value * 0.70710678f;
-                r += value * 0.70710678f;
+                const auto m = static_cast<size_t>(mix);
+                const auto ch = static_cast<size_t>(channel);
+                if (inputs[channel] == nullptr || inputMutes_[m][ch].load()) continue;
+                const float value = inputs[channel][sample] * inputGains_[m][ch].load();
+                const float pan = inputPans_[m][ch].load();
+                const float angle = (pan + 1.0f) * 0.78539816339f;
+                l += value * std::cos(angle);
+                r += value * std::sin(angle);
             }
-            l *= masterGains_[static_cast<size_t>(mix)];
-            r *= masterGains_[static_cast<size_t>(mix)];
             l = juce::jlimit(-0.98f, 0.98f, l);
             r = juce::jlimit(-0.98f, 0.98f, r);
-            outL[sample] += l;
-            if (outR != nullptr) outR[sample] += r;
+            outL[sample] = l;
+            if (outR != nullptr) outR[sample] = r;
             peak = juce::jmax(peak, juce::jmax(std::abs(l), std::abs(r)));
         }
         mixPeaks[static_cast<size_t>(mix)] = peak;
     }
 
-    for (int i = 0; i < kInputChannels; ++i) inputPeaks_[static_cast<size_t>(i)].store(peaks[static_cast<size_t>(i)]);
-    for (int i = 0; i < kMixes; ++i) outputPeaks_[static_cast<size_t>(i)].store(mixPeaks[static_cast<size_t>(i)]);
-}
 
-float AudioEngine::inputPeak(int channel) const noexcept {
-    return channel >= 0 && channel < kInputChannels ? inputPeaks_[static_cast<size_t>(channel)].load() : 0.0f;
+void AudioEngine::setMixInputGain(int mix, int input, float gain) noexcept {
+    if (mix >= 0 && mix < kMixes && input >= 0 && input < kInputChannels)
+        inputGains_[static_cast<size_t>(mix)][static_cast<size_t>(input)].store(juce::jlimit(0.0f, 2.0f, gain));
 }
-
-float AudioEngine::outputPeak(int mix) const noexcept {
-    return mix >= 0 && mix < kMixes ? outputPeaks_[static_cast<size_t>(mix)].load() : 0.0f;
+void AudioEngine::setMixInputPan(int mix, int input, float pan) noexcept {
+    if (mix >= 0 && mix < kMixes && input >= 0 && input < kInputChannels)
+        inputPans_[static_cast<size_t>(mix)][static_cast<size_t>(input)].store(juce::jlimit(-1.0f, 1.0f, pan));
+}
+void AudioEngine::setMixInputMuted(int mix, int input, bool muted) noexcept {
+    if (mix >= 0 && mix < kMixes && input >= 0 && input < kInputChannels)
+        inputMutes_[static_cast<size_t>(mix)][static_cast<size_t>(input)].store(muted);
+}
+float AudioEngine::mixInputGain(int mix, int input) const noexcept {
+    return mix >= 0 && mix < kMixes && input >= 0 && input < kInputChannels
+        ? inputGains_[static_cast<size_t>(mix)][static_cast<size_t>(input)].load() : 0.0f;
+}
+float AudioEngine::mixInputPan(int mix, int input) const noexcept {
+    return mix >= 0 && mix < kMixes && input >= 0 && input < kInputChannels
+        ? inputPans_[static_cast<size_t>(mix)][static_cast<size_t>(input)].load() : 0.0f;
+}
+bool AudioEngine::mixInputMuted(int mix, int input) const noexcept {
+    return mix >= 0 && mix < kMixes && input >= 0 && input < kInputChannels
+        ? inputMutes_[static_cast<size_t>(mix)][static_cast<size_t>(input)].load() : true;
 }
