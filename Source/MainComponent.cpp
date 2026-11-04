@@ -19,7 +19,7 @@ void LevelMeter::paint(juce::Graphics& g) {
     g.fillRoundedRectangle(active, 1.5f);
 }
 
-MainComponent::MainComponent() {
+MainComponent::MainComponent() {\n    assignmentFile_ = juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory)\n        .getChildFile("dB Studio").getChildFile("assignments.dbsaux");\n    assignmentFile_.getParentDirectory().createDirectory();\n    if (assignmentFile_.existsAsFile()) {\n        const auto loaded = assignments_.loadFromFile(assignmentFile_.getFullPathName().toStdString());\n        if (loaded != AuxAssignmentRegistry::Result::success)\n            status_.setText("AVISO: cadastro AUX salvo inválido; não foi carregado.", juce::dontSendNotification);\n    }
     setSize(1320, 850);
     title_.setText("dB STUDIO", juce::dontSendNotification);
     title_.setFont(juce::Font(27.0f, juce::Font::bold));
@@ -269,3 +269,4 @@ void MainComponent::refreshDeviceSummary() {
         + juce::String(engine_.blockSize()) + " samples | 16 AUX estéreo internos. Receptores Wi-Fi ainda não integrados. "
         "Saída física opcional para monitoração.");
 }
+\n\nbool MainComponent::persistAssignments() {\n    return assignments_.saveToFile(assignmentFile_.getFullPathName().toStdString())\n        == AuxAssignmentRegistry::Result::success;\n}\n
