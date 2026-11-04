@@ -69,3 +69,43 @@ Desktop and mobile should both support Save Scene, Save Scene As, and Open Scene
 5. Add persistent connection-session storage and the Connection History interface.
 
 These are requirements and design decisions until code and automated tests demonstrate otherwise.
+## 5. Desktop multitrack recording and export
+
+The desktop application will include a dedicated multitrack recorder, independent of Wi-Fi transmission. The target is simultaneous recording of up to 32 input channels as separate tracks, limited by the channels actually exposed by the connected audio device. Optional stereo AUX and stereo main-mix recording may be offered as additional record sources, without replacing the isolated input tracks.
+
+### Recording behavior
+
+- Record, pause, resume and stop controls, with elapsed-time display and per-track level/record status.
+- Each input is stored as an independently addressable track with editable display name and source-channel identity.
+- Preserve channel alignment and a common session start time so tracks can be imported together into a DAW without manual synchronization.
+- Record at the active device sample rate where supported; show the selected sample rate, bit depth and estimated disk usage before recording.
+- Write audio on a dedicated recording thread using preallocated buffers/queues; never perform disk I/O or allocate memory in the real-time audio callback.
+- Detect disk-full and write failures, report them clearly, and finalize recoverable files safely. Provide crash-recovery metadata/checkpoints.
+- User can choose a recording folder and track naming template. Never silently overwrite existing recordings.
+- Recording must not block or interrupt the Wi-Fi AUX distribution path. If recording cannot keep up, report the failure rather than silently corrupting or dropping audio.
+
+### File formats and interoperability
+
+Supported export targets should be prioritized as follows:
+- WAV (.wav): primary interchange format; uncompressed PCM, broad DAW/player compatibility and best choice for editing.
+- FLAC (.flac): lossless compressed option to reduce storage while retaining original audio quality; support depends on the selected JUCE 8 format modules/build configuration and must be verified in CI.
+- MP3 (.mp3): compact lossy format for convenient listening/sharing; encoding requires a suitable encoder dependency and a separate licensing/patent review where applicable. Do not claim MP3 export until the encoder is integrated and tested.
+- Optional Ogg Vorbis/Opus may be evaluated later for compact delivery, but should not delay WAV support and must be checked against target application compatibility.
+
+Allow format selection for individual tracks and batch export. WAV should be the default for multitrack production. MP3 is intended for listening/sharing, not as the archival master. Offer quality/bitrate options only for lossy formats.
+
+### Project/session organization
+
+Keep the existing .dBs scene file compact and configuration-only. Do not embed recorded audio in a scene file. A recording session should use a project folder containing individual audio files plus a .dBs session manifest that references those files by relative path and stores track names, source channels, sample rate, bit depth, start offsets, duration and format metadata. This allows the session to reopen without making one huge proprietary audio file. Moving or sharing a session requires copying the complete session folder; missing media must be reported clearly.
+
+Provide Save, Save As and Export actions. Save As creates a new session/project location without overwriting the original. Export writes selected/all tracks to the chosen interoperable format and destination. The user must be able to export each track separately and, optionally, a consolidated archive of the session folder.
+
+### Required verification before release
+
+- Record all 32 input channels concurrently using a simulated source and verify sample counts, channel mapping and alignment.
+- Verify pause/resume, stop/finalize, file naming, Save As, batch export and overwrite protection.
+- Reopen exported WAV files in an independent decoder/test utility and verify sample rate, channel count, duration and readable PCM data.
+- Test FLAC and MP3 encoding only when their encoder modules are included; verify decoding with independent tools.
+- Simulate disk-full/write failure and application interruption; verify clear error reporting and recovery behavior.
+- Stress-test recording and network handoff concurrently; measure callback timing, queue overflow and recording dropouts.
+- Run all verification tests before compiling/releasing a build that includes recording changes.
