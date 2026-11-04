@@ -15,6 +15,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Verify native architecture before compilation
+        run: python -m unittest tests/test_native_architecture.py -v
+
       - name: Configure JUCE native application
         run: cmake -S . -B build -A x64
 
