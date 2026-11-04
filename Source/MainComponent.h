@@ -25,6 +25,7 @@ private:
     void loadSelectedMix();
     void promptAssignDevice();
     void promptRenameDevice();
+    bool persistAssignments();
 
     AudioEngine engine_;
     juce::Label title_, status_, deviceSummary_, footer_;
@@ -32,6 +33,7 @@ private:
     juce::TextButton assignButton_{"ATRIBUIR AUX"};
     juce::TextButton renameButton_{"RENOMEAR"};
     AuxAssignmentRegistry assignments_;
+    juce::File assignmentFile_;
     juce::ComboBox mixSelector_;
     juce::Label mixLabel_{"mixLabel", "MIX INDIVIDUAL:"};
     juce::Label outputMeterLabel_{"outputMeterLabel", "SAÍDA:"};
