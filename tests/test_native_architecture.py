@@ -35,7 +35,7 @@ class NativeArchitectureChecks(unittest.TestCase):
         spec = (ROOT / 'docs' / 'DEVICE_HISTORY_AND_DBS_FORMAT.md').read_text(encoding='utf-8')
         self.assertIn('Connection History', spec)
         self.assertIn('.dBs', spec)
-        self.assertIn('multitrack recorder', spec.lower())
+        self.assertIn('multitrack recording', spec.lower())
         self.assertIn('not implemented yet', spec.lower())
 
 if __name__ == '__main__':
