@@ -56,7 +56,7 @@ void AudioEngine::audioDeviceIOCallbackWithContext(const float* const* inputs, i
 
     for (int channel = 0; channel < availableInputs; ++channel) {
         if (inputs[channel] == nullptr) continue;
-        peaks[static_cast<size_t>(channel)] = juce::FloatVectorOperations::findMinAndMax(inputs[channel], samples).getMagnitude();
+        const auto range = juce::FloatVectorOperations::findMinAndMax(inputs[channel], samples);\n        peaks[static_cast<size_t>(channel)] = juce::jmax(std::abs(range.getStart()), std::abs(range.getEnd()));
     }
 
     // Every musician mix has its own gain, pan and mute state for each input.
