@@ -60,4 +60,6 @@ GitHub Actions builds the native application and separately runs the legacy Pyth
 3. Define and test a versioned audio packet format, stream identifiers, sequence numbers and timestamps.
 4. Implement receiver jitter buffer, packet-loss concealment policy and reconnection.
 5. Add device registration, naming, exclusive one-device-to-one-AUX assignment and master-role authentication.
-6. Add mobile receivers and validate end-to-end latency on a dedicated Wi-Fi access point.
+6. Add a persistent connection history with device name/identity, connect and disconnect timestamps, total session duration and reconnect events.
+7. Implement portable scene save/load using the native .dBs format on desktop and mobile, with versioned schema, validation, integrity checks and safe migrations.
+8. Add mobile receivers and validate end-to-end latency on a dedicated Wi-Fi access point.
