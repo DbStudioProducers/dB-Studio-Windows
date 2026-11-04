@@ -91,6 +91,11 @@ void AudioEngine::audioDeviceIOCallbackWithContext(const float* const* inputs, i
         mixPeaks[static_cast<size_t>(mix)] = peak;
     }
 
+    for (int channel = 0; channel < kInputChannels; ++channel)
+        inputPeaks_[static_cast<size_t>(channel)].store(peaks[static_cast<size_t>(channel)]);
+    for (int mix = 0; mix < kMixes; ++mix)
+        outputPeaks_[static_cast<size_t>(mix)].store(mixPeaks[static_cast<size_t>(mix)]);
+}
 
 void AudioEngine::setMixInputGain(int mix, int input, float gain) noexcept {
     if (mix >= 0 && mix < kMixes && input >= 0 && input < kInputChannels)
