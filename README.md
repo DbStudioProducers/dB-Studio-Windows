@@ -62,4 +62,5 @@ GitHub Actions builds the native application and separately runs the legacy Pyth
 5. Add device registration, naming, exclusive one-device-to-one-AUX assignment and master-role authentication.
 6. Add a persistent connection history with device name/identity, connect and disconnect timestamps, total session duration and reconnect events.
 7. Implement portable scene save/load using the native .dBs format on desktop and mobile, with versioned schema, validation, integrity checks and safe migrations.
-8. Add mobile receivers and validate end-to-end latency on a dedicated Wi-Fi access point.
+8. Add desktop multitrack recording for up to 32 independent inputs, with aligned tracks, recovery, Save As and batch export to WAV, FLAC and MP3 after encoder/licensing validation.
+9. Add mobile receivers and validate end-to-end latency on a dedicated Wi-Fi access point.
