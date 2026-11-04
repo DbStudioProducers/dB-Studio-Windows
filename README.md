@@ -32,3 +32,12 @@ No claim of universal compatibility is made. USB multichannel devices expose onl
 
 ## Validation
 GitHub Actions builds the native application and separately runs the legacy Python syntax, unit and virtual-lab checks. A successful compile is not a substitute for testing real audio hardware and measuring round-trip latency.
+
+## Next native audio step: independent monitor mix core
+The native engine now exposes per-mix/per-input atomic controls:
+- 16 independent stereo mixes x 32 input channels.
+- Independent input gain (0.0–2.0), pan (-1.0–1.0) and mute per mix.
+- Lock-free control reads in the audio callback; no heap allocation or mutex in the callback.
+- Each mix is rendered separately to its corresponding physical stereo output pair.
+
+Important: the current UI does not yet expose all 512 channel strips and this engine layer has not yet been confirmed by a Windows CI build. A stereo-only output still physically supports one stereo mix at a time. The default input gain is conservative and must be calibrated during listening tests.
