@@ -109,3 +109,7 @@ Provide Save, Save As and Export actions. Save As creates a new session/project 
 - Simulate disk-full/write failure and application interruption; verify clear error reporting and recovery behavior.
 - Stress-test recording and network handoff concurrently; measure callback timing, queue overflow and recording dropouts.
 - Run all verification tests before compiling/releasing a build that includes recording changes.
+
+## Implemented core assignment component (0.5.x)
+
+The native core now includes a mutex-protected 16-slot assignment registry. It rejects empty device IDs, out-of-range AUX indices, duplicate device assignments and occupied AUX slots. It supports display-name changes while preserving the stable device ID, lookup by device or AUX, and unassignment. A C++ executable test exercises invalid inputs, exclusivity, all 16 slots, rename, lookup, release and slot reuse. The registry is not yet connected to the desktop Devices screen or any network receiver; it must not be presented as end-to-end device management.
