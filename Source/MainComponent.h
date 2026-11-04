@@ -1,5 +1,6 @@
 #pragma once
 #include "AudioEngine.h"
+#include "AuxAssignmentRegistry.h"
 #include <juce_gui_extra/juce_gui_extra.h>
 #include <array>
 
@@ -22,10 +23,15 @@ private:
     void timerCallback() override;
     void refreshDeviceSummary();
     void loadSelectedMix();
+    void promptAssignDevice();
+    void promptRenameDevice();
 
     AudioEngine engine_;
     juce::Label title_, status_, deviceSummary_, footer_;
-    juce::TextButton devicesButton_{"DISPOSITIVOS"};
+    juce::TextButton devicesButton_{"ÁUDIO"};
+    juce::TextButton assignButton_{"ATRIBUIR AUX"};
+    juce::TextButton renameButton_{"RENOMEAR"};
+    AuxAssignmentRegistry assignments_;
     juce::ComboBox mixSelector_;
     juce::Label mixLabel_{"mixLabel", "MIX INDIVIDUAL:"};
     juce::Label outputMeterLabel_{"outputMeterLabel", "SAÍDA:"};
