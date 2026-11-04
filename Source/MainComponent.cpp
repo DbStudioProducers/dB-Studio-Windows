@@ -240,15 +240,16 @@ void MainComponent::promptRenameDevice() {
 
 void MainComponent::refreshDeviceSummary() {
     auto* device = engine_.deviceManager().getCurrentAudioDevice();
+    const auto assignedText = " | " + juce::String(static_cast<int>(assignments_.assignedCount())) + "/16 AUX atribuídos";
     if (device == nullptr) {
-        deviceSummary_.setText("SEM DISPOSITIVO DE ÁUDIO", juce::dontSendNotification);
-        diagnostics_.setText("Nenhum dispositivo ativo. A tela de mixagem permanece disponível para configuração.");
+        deviceSummary_.setText("SEM DISPOSITIVO DE ÁUDIO" + assignedText, juce::dontSendNotification);
+        diagnostics_.setText("Cadastro local de AUX. Ainda não indica receptores conectados por Wi-Fi.");
         return;
     }
     const auto inputs = device->getActiveInputChannels().countNumberOfSetBits();
     const auto outputs = device->getActiveOutputChannels().countNumberOfSetBits();
     deviceSummary_.setText(device->getName() + "  |  " + juce::String(inputs) + " IN / "
-        + juce::String(outputs) + " OUT  |  " + juce::String(engine_.sampleRate(), 0) + " Hz",
+        + juce::String(outputs) + " OUT  |  " + juce::String(engine_.sampleRate(), 0) + " Hz" + assignedText,
         juce::dontSendNotification);
     diagnostics_.setText("Driver: " + device->getTypeName() + " | Buffer: "
         + juce::String(engine_.blockSize()) + " samples | 16 AUX estéreo internos. Receptores Wi-Fi ainda não integrados. "
