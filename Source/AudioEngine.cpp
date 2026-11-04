@@ -98,6 +98,15 @@ void AudioEngine::audioDeviceIOCallbackWithContext(const float* const* inputs, i
         outputPeaks_[static_cast<size_t>(mix)].store(mixPeaks[static_cast<size_t>(mix)]);
 }
 
+float AudioEngine::inputPeak(int channel) const noexcept {
+    return channel >= 0 && channel < kInputChannels
+        ? inputPeaks_[static_cast<size_t>(channel)].load() : 0.0f;
+}
+float AudioEngine::outputPeak(int mix) const noexcept {
+    return mix >= 0 && mix < kMixes
+        ? outputPeaks_[static_cast<size_t>(mix)].load() : 0.0f;
+}
+
 void AudioEngine::setMixInputGain(int mix, int input, float gain) noexcept {
     if (mix >= 0 && mix < kMixes && input >= 0 && input < kInputChannels)
         inputGains_[static_cast<size_t>(mix)][static_cast<size_t>(input)].store(juce::jlimit(0.0f, 2.0f, gain));
