@@ -18,11 +18,17 @@ jobs:
       - name: Verify native architecture before compilation
         run: python -m unittest tests/test_native_architecture.py -v
 
-      - name: Configure JUCE native application
-        run: cmake -S . -B build -A x64
+      - name: Configure JUCE native application and core tests
+        run: cmake -S . -B build -A x64 -DBUILD_TESTING=ON
+
+      - name: Build core verification tests
+        run: cmake --build build --config Release --target dBStudioCoreTests
+
+      - name: Run core verification tests before application compilation
+        run: ctest --test-dir build -C Release --output-on-failure
 
       - name: Compile native application
-        run: cmake --build build --config Release --parallel 2
+        run: cmake --build build --config Release --target dBStudio --parallel 2
 
       - name: Upload native application
         uses: actions/upload-artifact@v4
