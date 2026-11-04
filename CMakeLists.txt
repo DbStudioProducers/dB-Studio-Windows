@@ -5,6 +5,14 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+include(CTest)
+
+add_executable(dBStudioCoreTests tests/test_aux_assignment.cpp)
+target_include_directories(dBStudioCoreTests PRIVATE Source)
+if(BUILD_TESTING)
+  add_test(NAME AuxAssignmentRegistry COMMAND dBStudioCoreTests)
+endif()
+
 include(FetchContent)
 FetchContent_Declare(juce
   GIT_REPOSITORY https://github.com/juce-framework/JUCE.git
