@@ -44,8 +44,8 @@ int main() {
     CHECK(registry.assignedCount() == 16);
     CHECK(registry.findByMix(0, found) && found.deviceId == "device-new");
 
-    const std::string path = "dbstudio_aux_registry_test.dbsaux";
-    CHECK(registry.saveToFile(path) == AuxAssignmentRegistry::Result::success);
+    const std::string path = "dbstudio_aux_registry_teste_á.dbsaux";
+    CHECK(registry.saveToFile(path) == AuxAssignmentRegistry::Result::success);\n    CHECK(registry.saveToFile("diretorio_inexistente/subpasta/nao_pode_salvar.dbsaux") == AuxAssignmentRegistry::Result::persistenceError);
     AuxAssignmentRegistry restored;
     CHECK(restored.loadFromFile(path) == AuxAssignmentRegistry::Result::success);
     CHECK(restored.assignedCount() == 16);
