@@ -6,10 +6,10 @@ The dB Studio is being developed as a desktop Wi-Fi audio transmitter and person
 
 - Digital mixer / audio interface sends up to 32 input channels to the desktop server through a supported USB audio driver or a separately implemented Ethernet audio protocol.
 - The server creates 16 independent stereo auxiliary mixes from those inputs.
-- Each auxiliary mix is encoded/framed and transmitted over a dedicated Wi-Fi network to its assigned mobile receiver(s).
+- Each auxiliary mix is assigned to one individual musician/device and transmitted over a dedicated Wi-Fi network to that receiver only. Shared-mix delivery to multiple devices is out of scope.
 - Each musician's phone receives its assigned stereo mix and outputs it through a wired headphone path, initially USB-C or compatible audio output.
 - The desktop remains the central administration and mixing server. An authenticated master device may later receive delegated control permissions.
-- The number of computer hardware outputs is NOT the number of musician mixes. Physical multichannel outputs are not required for Wi-Fi distribution; the network transport is the intended output path.
+- Distribution is strictly individual: one device receives one individually assigned AUX mix. A device cannot subscribe to another musician's mix, and an AUX mix is not shared between devices. With 16 AUX buses, the initial design supports up to 16 simultaneously assigned individual mixes/devices.
 
 USB and Ethernet are alternative input paths in the initial design, not automatically summed. Ethernet audio standards such as Dante, AES67 or AVB are not implied by generic Ethernet connectivity and require separate protocol implementation, licensing review and validation.
 
@@ -36,7 +36,7 @@ CMake downloads the pinned JUCE 8.0.6 source during configuration.
 
 This branch is an engineering foundation, not a finished Wi-Fi IEM system. **Network audio streaming and mobile receiver clients are not implemented yet.** The next architecture step is to decouple mix rendering from physical output channels and provide 16 internal stereo mix buses to a dedicated network sender. Network I/O must not block or allocate in the real-time audio callback; a bounded preallocated queue/ring buffer and a separate sender thread are required.
 
-The network layer will need packet sequencing, timestamps, jitter buffering on receivers, loss/reorder handling, reconnect behavior, per-device stream assignment, authentication and encryption. Audio format, packet duration, codec/PCM choice and target latency must be benchmarked on the dedicated Wi-Fi network before being fixed. The initial preference is to evaluate low-overhead PCM transport first, then compare bandwidth and latency against an optional codec.
+The network layer will need packet sequencing, timestamps, jitter buffering on receivers, loss/reorder handling, reconnect behavior, exclusive one-to-one device/AUX assignment, authentication and encryption. Shared AUX subscriptions are intentionally excluded. Audio format, packet duration, codec/PCM choice and target latency must be benchmarked on the dedicated Wi-Fi network before being fixed. The initial preference is to evaluate low-overhead PCM transport first, then compare bandwidth and latency against an optional codec.
 
 The initial mobile audio output is wired/USB-C. Bluetooth headphone support is deferred. Battery level and Wi-Fi signal strength can only be displayed when the mobile operating system or receiver app exposes reliable telemetry.
 
@@ -54,9 +54,9 @@ GitHub Actions builds the native application and separately runs the legacy Pyth
 
 ## Next implementation milestones
 
-1. Extract a dedicated 16-bus stereo mix renderer independent of physical output count.
+1. Extract a dedicated 16-bus stereo mix renderer independent of physical output count, enforcing one receiver per AUX.
 2. Add a preallocated bounded audio-block queue and separate Wi-Fi/network sender.
 3. Define and test a versioned audio packet format, stream identifiers, sequence numbers and timestamps.
 4. Implement receiver jitter buffer, packet-loss concealment policy and reconnection.
-5. Add device registration, naming, per-device AUX assignment and master-role authentication.
+5. Add device registration, naming, exclusive one-device-to-one-AUX assignment and master-role authentication.
 6. Add mobile receivers and validate end-to-end latency on a dedicated Wi-Fi access point.
