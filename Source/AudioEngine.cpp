@@ -37,8 +37,9 @@ void AudioEngine::audioDeviceStopped() {
     for (auto& peak : outputPeaks_) peak.store(0.0f);
 }
 
-void AudioEngine::audioDeviceIOCallback(const float** inputs, int numInputs,
-                                        float** outputs, int numOutputs, int samples) {
+void AudioEngine::audioDeviceIOCallbackWithContext(const float* const* inputs, int numInputs,
+                                        float* const* outputs, int numOutputs, int samples,
+                                        const juce::AudioIODeviceCallbackContext&) {
     for (int out = 0; out < numOutputs; ++out)
         if (outputs[out] != nullptr) juce::FloatVectorOperations::clear(outputs[out], samples);
 
