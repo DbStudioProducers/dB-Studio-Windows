@@ -30,17 +30,18 @@ CMake downloads the pinned JUCE 8.0.6 source during configuration.
 - Device name, active input/output channel counts, sample rate and buffer diagnostics.
 - Float32 audio callback and 32 input peak meters.
 - 16 independent mix control states, each with 32 channel gain/pan/mute controls.
-- Mix processing currently writes to available physical output pairs as a temporary local validation path.
+- All 16 stereo AUX buses are rendered into preallocated internal buffers, independent of physical output availability.
+- A bounded three-slot single-producer/single-consumer handoff queue publishes complete AUX snapshots to a future network sender. The audio callback never waits for the consumer; when the queue is full, the newest block is dropped and counted.
 
 ## Implementation status and important boundary
 
-This branch is an engineering foundation, not a finished Wi-Fi IEM system. **Network audio streaming and mobile receiver clients are not implemented yet.** The next architecture step is to decouple mix rendering from physical output channels and provide 16 internal stereo mix buses to a dedicated network sender. Network I/O must not block or allocate in the real-time audio callback; a bounded preallocated queue/ring buffer and a separate sender thread are required.
+This branch is an engineering foundation, not a finished Wi-Fi IEM system. **Network audio streaming and mobile receiver clients are not implemented yet.** The audio engine now renders 16 internal stereo mix buses and publishes snapshots through a bounded, preallocated single-producer/single-consumer queue. A future network sender must be the sole consumer, acquire and release each block exactly once, and perform all network I/O outside the real-time callback. The queue has three slots; if the sender falls behind, the audio callback drops the new block rather than blocking, and increments a diagnostic counter.
 
 The network layer will need packet sequencing, timestamps, jitter buffering on receivers, loss/reorder handling, reconnect behavior, exclusive one-to-one device/AUX assignment, authentication and encryption. Shared AUX subscriptions are intentionally excluded. Audio format, packet duration, codec/PCM choice and target latency must be benchmarked on the dedicated Wi-Fi network before being fixed. The initial preference is to evaluate low-overhead PCM transport first, then compare bandwidth and latency against an optional codec.
 
 The initial mobile audio output is wired/USB-C. Bluetooth headphone support is deferred. Battery level and Wi-Fi signal strength can only be displayed when the mobile operating system or receiver app exposes reliable telemetry.
 
-The current callback's physical output-pair rendering is temporary and must not be mistaken for the product's intended distribution architecture. A two-channel physical output device is sufficient for local listening tests, but the final system distributes all assigned mixes over Wi-Fi.
+Physical outputs are currently cleared and are not used as AUX destinations. A two-channel physical output device is optional and reserved for future local monitoring; all 16 mixes are prepared internally for Wi-Fi distribution.
 
 ## Compatibility
 
