@@ -60,6 +60,10 @@ MainComponent::MainComponent() {
         options.launchAsync();
     };
     addAndMakeVisible(devicesButton_);
+    assignButton_.onClick = [this] { promptAssignDevice(); };
+    addAndMakeVisible(assignButton_);
+    renameButton_.onClick = [this] { promptRenameDevice(); };
+    addAndMakeVisible(renameButton_);
 
     for (int i = 0; i < AudioEngine::kInputChannels; ++i) {
         auto& label = channelLabels_[static_cast<size_t>(i)];
@@ -151,6 +155,8 @@ void MainComponent::resized() {
     auto controls = area.removeFromTop(38);
     mixLabel_.setBounds(controls.removeFromLeft(130));
     mixSelector_.setBounds(controls.removeFromLeft(150));
+    assignButton_.setBounds(controls.removeFromLeft(125).reduced(2));
+    renameButton_.setBounds(controls.removeFromLeft(105).reduced(2));
     outputMeterLabel_.setBounds(controls.removeFromLeft(62));
     outputMeter_.setBounds(controls.removeFromLeft(110).reduced(2, 12));
     deviceSummary_.setBounds(controls);
@@ -189,6 +195,49 @@ void MainComponent::loadSelectedMix() {
     }
 }
 
+
+void MainComponent::promptAssignDevice() {
+    juce::AlertWindow dialog("Atribuir dispositivo", "ID estável, nome e AUX exclusivo.", juce::AlertWindow::NoIcon);
+    dialog.addTextEditor("deviceId", {}, "ID do dispositivo");
+    dialog.addTextEditor("displayName", {}, "Nome do músico/dispositivo");
+    dialog.addComboBox("mix", {}, "AUX");
+    if (auto* combo = dialog.getComboBoxComponent("mix")) {
+        for (int i = 0; i < AuxAssignmentRegistry::kMixCount; ++i)
+            combo->addItem("AUX " + juce::String(i + 1).paddedLeft('0', 2), i + 1);
+        combo->setSelectedId(1);
+    }
+    dialog.addButton("ATRIBUIR", 1);
+    dialog.addButton("CANCELAR", 0);
+    if (dialog.runModalLoop() != 1) return;
+    const auto id = dialog.getTextEditorContents("deviceId").trim();
+    const auto name = dialog.getTextEditorContents("displayName").trim();
+    const int mix = dialog.getComboBoxComponent("mix")->getSelectedId() - 1;
+    const auto result = assignments_.assign(id.toStdString(), name.toStdString(), static_cast<std::size_t>(juce::jmax(0, mix)));
+    const bool ok = result == AuxAssignmentRegistry::Result::success;
+    const auto message = ok ? "AUX exclusivo atribuído." :
+        result == AuxAssignmentRegistry::Result::deviceAlreadyAssigned ? "Dispositivo já possui um AUX." :
+        result == AuxAssignmentRegistry::Result::mixAlreadyAssigned ? "AUX já ocupado." :
+        result == AuxAssignmentRegistry::Result::invalidDeviceId ? "ID inválido." : "AUX inválido.";
+    juce::AlertWindow::showMessageBoxAsync(ok ? juce::MessageBoxIconType::InfoIcon : juce::MessageBoxIconType::WarningIcon, "dB Studio", message);
+    refreshDeviceSummary();
+}
+
+void MainComponent::promptRenameDevice() {
+    juce::AlertWindow dialog("Renomear dispositivo", "A identidade estável não será alterada.", juce::AlertWindow::NoIcon);
+    dialog.addTextEditor("deviceId", {}, "ID estável");
+    dialog.addTextEditor("displayName", {}, "Novo nome");
+    dialog.addButton("SALVAR", 1);
+    dialog.addButton("CANCELAR", 0);
+    if (dialog.runModalLoop() != 1) return;
+    const auto id = dialog.getTextEditorContents("deviceId").trim();
+    const auto name = dialog.getTextEditorContents("displayName").trim();
+    const auto result = assignments_.renameDevice(id.toStdString(), name.toStdString());
+    const bool ok = result == AuxAssignmentRegistry::Result::success;
+    juce::AlertWindow::showMessageBoxAsync(ok ? juce::MessageBoxIconType::InfoIcon : juce::MessageBoxIconType::WarningIcon,
+        "dB Studio", ok ? "Nome atualizado." : "Dispositivo não encontrado.");
+    refreshDeviceSummary();
+}
+
 void MainComponent::refreshDeviceSummary() {
     auto* device = engine_.deviceManager().getCurrentAudioDevice();
     if (device == nullptr) {
@@ -202,6 +251,6 @@ void MainComponent::refreshDeviceSummary() {
         + juce::String(outputs) + " OUT  |  " + juce::String(engine_.sampleRate(), 0) + " Hz",
         juce::dontSendNotification);
     diagnostics_.setText("Driver: " + device->getTypeName() + " | Buffer: "
-        + juce::String(engine_.blockSize()) + " samples | 16 AUX estéreo internos preparados para distribuição Wi-Fi. "
+        + juce::String(engine_.blockSize()) + " samples | 16 AUX estéreo internos. Receptores Wi-Fi ainda não integrados. "
         "Saída física opcional para monitoração.");
 }
