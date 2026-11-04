@@ -1,8 +1,20 @@
-# dB Studio — Native JUCE foundation (0.5.0)
+# dB Studio — Wi-Fi IEM transmitter (native JUCE foundation 0.5.0)
 
-This branch introduces the first native desktop foundation using JUCE 8.0.6 and CMake.
+The dB Studio is being developed as a desktop Wi-Fi audio transmitter and personal in-ear monitoring system, inspired by the workflow of products such as StageWave, with its own routing, control, monitoring and administration features. JUCE 8.0.6 is the selected native audio framework.
+
+## Intended system architecture
+
+- Digital mixer / audio interface sends up to 32 input channels to the desktop server through a supported USB audio driver or a separately implemented Ethernet audio protocol.
+- The server creates 16 independent stereo auxiliary mixes from those inputs.
+- Each auxiliary mix is encoded/framed and transmitted over a dedicated Wi-Fi network to its assigned mobile receiver(s).
+- Each musician's phone receives its assigned stereo mix and outputs it through a wired headphone path, initially USB-C or compatible audio output.
+- The desktop remains the central administration and mixing server. An authenticated master device may later receive delegated control permissions.
+- The number of computer hardware outputs is NOT the number of musician mixes. Physical multichannel outputs are not required for Wi-Fi distribution; the network transport is the intended output path.
+
+USB and Ethernet are alternative input paths in the initial design, not automatically summed. Ethernet audio standards such as Dante, AES67 or AVB are not implied by generic Ethernet connectivity and require separate protocol implementation, licensing review and validation.
 
 ## Build (Windows 10/11 x64)
+
 1. Install Visual Studio 2022 with the Desktop development with C++ workload.
 2. Install CMake 3.22 or newer.
 3. Run:
@@ -13,31 +25,38 @@ This branch introduces the first native desktop foundation using JUCE 8.0.6 and 
 CMake downloads the pinned JUCE 8.0.6 source during configuration.
 
 ## Current native foundation
-- Native JUCE desktop window.
-- JUCE AudioDeviceManager initialization and device selector.
+
+- Native JUCE desktop window and audio device selector.
 - Device name, active input/output channel counts, sample rate and buffer diagnostics.
-- Audio callback using float32 buffers.
-- 32 input peak meters and 16 stereo bus peak values.
-- Stereo mix 1 can use a normal two-channel output. Mixes 2–16 require a multichannel output device.
+- Float32 audio callback and 32 input peak meters.
+- 16 independent mix control states, each with 32 channel gain/pan/mute controls.
+- Mix processing currently writes to available physical output pairs as a temporary local validation path.
 
-## Important implementation status
-This is an engineering foundation, not a finished monitor mixer. The current callback distributes a simple test mix to available stereo output pairs; per-channel gain/pan/mute/solo, independent musician routing, DSP effects, network streaming, authentication, mobile clients and hardware-specific control protocols are not implemented yet.
+## Implementation status and important boundary
 
-The legacy Python virtual lab remains in the repository for regression comparison. Its PASS result validates only the simulator and loopback packet path, not physical interfaces.
+This branch is an engineering foundation, not a finished Wi-Fi IEM system. **Network audio streaming and mobile receiver clients are not implemented yet.** The next architecture step is to decouple mix rendering from physical output channels and provide 16 internal stereo mix buses to a dedicated network sender. Network I/O must not block or allocate in the real-time audio callback; a bounded preallocated queue/ring buffer and a separate sender thread are required.
+
+The network layer will need packet sequencing, timestamps, jitter buffering on receivers, loss/reorder handling, reconnect behavior, per-device stream assignment, authentication and encryption. Audio format, packet duration, codec/PCM choice and target latency must be benchmarked on the dedicated Wi-Fi network before being fixed. The initial preference is to evaluate low-overhead PCM transport first, then compare bandwidth and latency against an optional codec.
+
+The initial mobile audio output is wired/USB-C. Bluetooth headphone support is deferred. Battery level and Wi-Fi signal strength can only be displayed when the mobile operating system or receiver app exposes reliable telemetry.
+
+The current callback's physical output-pair rendering is temporary and must not be mistaken for the product's intended distribution architecture. A two-channel physical output device is sufficient for local listening tests, but the final system distributes all assigned mixes over Wi-Fi.
 
 ## Compatibility
-The initial native build targets Windows 10/11 x64. Current JUCE 8 support does not establish Windows 8.1 compatibility. WASAPI/DirectSound/ASIO availability depends on the JUCE build configuration, installed drivers and device capabilities. ASIO support and SDK licensing must be evaluated separately before distribution.
+
+The selected framework remains JUCE 8.0.6. The initial native build targets Windows 10/11 x64. Windows 8.1 compatibility is not established. WASAPI/DirectSound/ASIO availability depends on JUCE build configuration, installed drivers and device capabilities. ASIO support and SDK licensing must be evaluated separately before distribution.
 
 No claim of universal compatibility is made. USB multichannel devices expose only channels provided by their drivers. Dante, AES67, AVB and vendor-specific Ethernet protocols require separate implementation, licensing review and physical validation.
 
 ## Validation
-GitHub Actions builds the native application and separately runs the legacy Python syntax, unit and virtual-lab checks. A successful compile is not a substitute for testing real audio hardware and measuring round-trip latency.
 
-## Next native audio step: independent monitor mix core
-The native engine now exposes per-mix/per-input atomic controls:
-- 16 independent stereo mixes x 32 input channels.
-- Independent input gain (0.0–2.0), pan (-1.0–1.0) and mute per mix.
-- Lock-free control reads in the audio callback; no heap allocation or mutex in the callback.
-- Each mix is rendered separately to its corresponding physical stereo output pair.
+GitHub Actions builds the native application and separately runs the legacy Python syntax, unit and virtual-lab checks. A successful compile validates compilation only; it does not validate Wi-Fi audio latency, packet loss, mobile playback or physical audio hardware.
 
-Important: the current UI does not yet expose all 512 channel strips and this engine layer has not yet been confirmed by a Windows CI build. A stereo-only output still physically supports one stereo mix at a time. The default input gain is conservative and must be calibrated during listening tests.
+## Next implementation milestones
+
+1. Extract a dedicated 16-bus stereo mix renderer independent of physical output count.
+2. Add a preallocated bounded audio-block queue and separate Wi-Fi/network sender.
+3. Define and test a versioned audio packet format, stream identifiers, sequence numbers and timestamps.
+4. Implement receiver jitter buffer, packet-loss concealment policy and reconnection.
+5. Add device registration, naming, per-device AUX assignment and master-role authentication.
+6. Add mobile receivers and validate end-to-end latency on a dedicated Wi-Fi access point.
