@@ -3,6 +3,14 @@
 #include <juce_gui_extra/juce_gui_extra.h>
 #include <array>
 
+class LevelMeter final : public juce::Component {
+public:
+    void setLevel(float value) noexcept { level_ = juce::jlimit(0.0f, 1.0f, value); repaint(); }
+    void paint(juce::Graphics& g) override;
+private:
+    float level_ = 0.0f;
+};
+
 class MainComponent final : public juce::Component, private juce::Timer {
 public:
     MainComponent();
@@ -20,9 +28,12 @@ private:
     juce::TextButton devicesButton_{"DISPOSITIVOS"};
     juce::ComboBox mixSelector_;
     juce::Label mixLabel_{"mixLabel", "MIX INDIVIDUAL:"};
+    juce::Label outputMeterLabel_{"outputMeterLabel", "SAÍDA:"};
+    LevelMeter outputMeter_;
     juce::TextEditor diagnostics_;
     juce::Component channelGrid_;
     std::array<juce::Label, AudioEngine::kInputChannels> channelLabels_;
+    std::array<LevelMeter, AudioEngine::kInputChannels> inputMeters_;
     std::array<juce::Slider, AudioEngine::kInputChannels> gainSliders_;
     std::array<juce::Slider, AudioEngine::kInputChannels> panSliders_;
     std::array<juce::TextButton, AudioEngine::kInputChannels> muteButtons_;
