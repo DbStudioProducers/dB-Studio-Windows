@@ -114,10 +114,43 @@ void AudioEngine::audioDeviceIOCallbackWithContext(const float* const* inputs, i
         mixPeaks[m] = peak;
     }
 
+
+    const auto write = queueWrite_.load(std::memory_order_relaxed);
+    const auto read = queueRead_.load(std::memory_order_acquire);
+    if (write - read < kQueueSlots) {
+        auto& block = networkQueue_[write % kQueueSlots];
+        block.frames = samples;
+        block.sequence = nextSequence_.fetch_add(1, std::memory_order_relaxed);
+        for (int bus = 0; bus < kOutputChannels; ++bus)
+            std::copy_n(mixBusBuffers_[static_cast<size_t>(bus)].data(), samples,
+                        block.samples.data() + static_cast<size_t>(bus * kMaxBlockSize));
+        queueWrite_.store(write + 1, std::memory_order_release);
+    } else {
+        droppedNetworkBlocks_.fetch_add(1, std::memory_order_relaxed);
+    }
+
     for (int channel = 0; channel < kInputChannels; ++channel)
         inputPeaks_[static_cast<size_t>(channel)].store(peaks[static_cast<size_t>(channel)]);
     for (int mix = 0; mix < kMixes; ++mix)
         outputPeaks_[static_cast<size_t>(mix)].store(mixPeaks[static_cast<size_t>(mix)]);
+}
+
+
+bool AudioEngine::tryAcquireNetworkBlock(const float*& samples, int& frames, unsigned long long& sequence) noexcept {
+    const auto read = queueRead_.load(std::memory_order_relaxed);
+    const auto write = queueWrite_.load(std::memory_order_acquire);
+    if (read == write || networkBlockAcquired_) return false;
+    const auto& block = networkQueue_[read % kQueueSlots];
+    samples = block.samples.data();
+    frames = block.frames;
+    sequence = block.sequence;
+    networkBlockAcquired_ = true;
+    return true;
+}
+void AudioEngine::releaseNetworkBlock() noexcept {
+    if (!networkBlockAcquired_) return;
+    queueRead_.fetch_add(1, std::memory_order_release);
+    networkBlockAcquired_ = false;
 }
 
 float AudioEngine::inputPeak(int channel) const noexcept {
