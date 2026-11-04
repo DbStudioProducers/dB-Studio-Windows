@@ -197,45 +197,59 @@ void MainComponent::loadSelectedMix() {
 
 
 void MainComponent::promptAssignDevice() {
-    juce::AlertWindow dialog("Atribuir dispositivo", "ID estável, nome e AUX exclusivo.", juce::AlertWindow::NoIcon);
-    dialog.addTextEditor("deviceId", {}, "ID do dispositivo");
-    dialog.addTextEditor("displayName", {}, "Nome do músico/dispositivo");
-    dialog.addComboBox("mix", {}, "AUX");
-    if (auto* combo = dialog.getComboBoxComponent("mix")) {
+    auto* dialog = new juce::AlertWindow(
+        "Atribuir dispositivo", "ID estável, nome e AUX exclusivo.", juce::AlertWindow::NoIcon);
+    dialog->addTextEditor("deviceId", {}, "ID do dispositivo");
+    dialog->addTextEditor("displayName", {}, "Nome do músico/dispositivo");
+    dialog->addComboBox("mix", {}, "AUX");
+    if (auto* combo = dialog->getComboBoxComponent("mix")) {
         for (int i = 0; i < AuxAssignmentRegistry::kMixCount; ++i)
             combo->addItem("AUX " + juce::String(i + 1).paddedLeft('0', 2), i + 1);
         combo->setSelectedId(1);
     }
-    dialog.addButton("ATRIBUIR", 1);
-    dialog.addButton("CANCELAR", 0);
-    if (dialog.runModalLoop() != 1) return;
-    const auto id = dialog.getTextEditorContents("deviceId").trim();
-    const auto name = dialog.getTextEditorContents("displayName").trim();
-    const int mix = dialog.getComboBoxComponent("mix")->getSelectedId() - 1;
-    const auto result = assignments_.assign(id.toStdString(), name.toStdString(), static_cast<std::size_t>(juce::jmax(0, mix)));
-    const bool ok = result == AuxAssignmentRegistry::Result::success;
-    const auto message = ok ? "AUX exclusivo atribuído." :
-        result == AuxAssignmentRegistry::Result::deviceAlreadyAssigned ? "Dispositivo já possui um AUX." :
-        result == AuxAssignmentRegistry::Result::mixAlreadyAssigned ? "AUX já ocupado." :
-        result == AuxAssignmentRegistry::Result::invalidDeviceId ? "ID inválido." : "AUX inválido.";
-    juce::AlertWindow::showMessageBoxAsync(ok ? juce::MessageBoxIconType::InfoIcon : juce::MessageBoxIconType::WarningIcon, "dB Studio", message);
-    refreshDeviceSummary();
+    dialog->addButton("ATRIBUIR", 1);
+    dialog->addButton("CANCELAR", 0);
+    dialog->enterModalState(true, juce::ModalCallbackFunction::create(
+        [this, safeDialog = juce::Component::SafePointer<juce::AlertWindow>(dialog)](int result) {
+            if (result != 1 || safeDialog == nullptr) return;
+            const auto id = safeDialog->getTextEditorContents("deviceId").trim();
+            const auto name = safeDialog->getTextEditorContents("displayName").trim();
+            const auto* combo = safeDialog->getComboBoxComponent("mix");
+            const int mix = combo != nullptr ? combo->getSelectedId() - 1 : -1;
+            if (mix < 0 || mix >= AuxAssignmentRegistry::kMixCount) return;
+            const auto assignment = assignments_.assign(
+                id.toStdString(), name.toStdString(), static_cast<std::size_t>(mix));
+            const bool ok = assignment == AuxAssignmentRegistry::Result::success;
+            const auto message = ok ? "AUX exclusivo atribuído." :
+                assignment == AuxAssignmentRegistry::Result::deviceAlreadyAssigned ? "Dispositivo já possui um AUX." :
+                assignment == AuxAssignmentRegistry::Result::mixAlreadyAssigned ? "AUX já ocupado." :
+                assignment == AuxAssignmentRegistry::Result::invalidDeviceId ? "ID inválido." : "AUX inválido.";
+            juce::AlertWindow::showMessageBoxAsync(
+                ok ? juce::MessageBoxIconType::InfoIcon : juce::MessageBoxIconType::WarningIcon,
+                "dB Studio", message);
+            refreshDeviceSummary();
+        }), true);
 }
 
 void MainComponent::promptRenameDevice() {
-    juce::AlertWindow dialog("Renomear dispositivo", "A identidade estável não será alterada.", juce::AlertWindow::NoIcon);
-    dialog.addTextEditor("deviceId", {}, "ID estável");
-    dialog.addTextEditor("displayName", {}, "Novo nome");
-    dialog.addButton("SALVAR", 1);
-    dialog.addButton("CANCELAR", 0);
-    if (dialog.runModalLoop() != 1) return;
-    const auto id = dialog.getTextEditorContents("deviceId").trim();
-    const auto name = dialog.getTextEditorContents("displayName").trim();
-    const auto result = assignments_.renameDevice(id.toStdString(), name.toStdString());
-    const bool ok = result == AuxAssignmentRegistry::Result::success;
-    juce::AlertWindow::showMessageBoxAsync(ok ? juce::MessageBoxIconType::InfoIcon : juce::MessageBoxIconType::WarningIcon,
-        "dB Studio", ok ? "Nome atualizado." : "Dispositivo não encontrado.");
-    refreshDeviceSummary();
+    auto* dialog = new juce::AlertWindow(
+        "Renomear dispositivo", "A identidade estável não será alterada.", juce::AlertWindow::NoIcon);
+    dialog->addTextEditor("deviceId", {}, "ID estável");
+    dialog->addTextEditor("displayName", {}, "Novo nome");
+    dialog->addButton("SALVAR", 1);
+    dialog->addButton("CANCELAR", 0);
+    dialog->enterModalState(true, juce::ModalCallbackFunction::create(
+        [this, safeDialog = juce::Component::SafePointer<juce::AlertWindow>(dialog)](int result) {
+            if (result != 1 || safeDialog == nullptr) return;
+            const auto id = safeDialog->getTextEditorContents("deviceId").trim();
+            const auto name = safeDialog->getTextEditorContents("displayName").trim();
+            const auto renameResult = assignments_.renameDevice(id.toStdString(), name.toStdString());
+            const bool ok = renameResult == AuxAssignmentRegistry::Result::success;
+            juce::AlertWindow::showMessageBoxAsync(
+                ok ? juce::MessageBoxIconType::InfoIcon : juce::MessageBoxIconType::WarningIcon,
+                "dB Studio", ok ? "Nome atualizado." : "Dispositivo não encontrado.");
+            refreshDeviceSummary();
+        }), true);
 }
 
 void MainComponent::refreshDeviceSummary() {
