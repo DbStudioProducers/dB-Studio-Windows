@@ -16,7 +16,9 @@ AudioEngine::AudioEngine() {
 AudioEngine::~AudioEngine() { shutdown(); }
 
 juce::String AudioEngine::initialise() {
-    const auto error = deviceManager_.initialise(kInputChannels, kOutputChannels, nullptr, true);
+    // 32 inputs are requested; physical stereo output is optional local
+    // monitoring only. Wi-Fi distribution uses the internal AUX buses.
+    const auto error = deviceManager_.initialise(kInputChannels, 2, nullptr, true);
     if (error.isNotEmpty())
         return error;
     deviceManager_.addAudioCallback(this);
@@ -45,23 +47,31 @@ void AudioEngine::audioDeviceStopped() {
 void AudioEngine::audioDeviceIOCallbackWithContext(const float* const* inputs, int numInputs,
                                         float* const* outputs, int numOutputs, int samples,
                                         const juce::AudioIODeviceCallbackContext&) {
+    // Physical outputs are deliberately silent in this foundation. They are
+    // not the AUX destinations; all 16 stereo mixes are rendered below.
     for (int out = 0; out < numOutputs; ++out)
         if (outputs[out] != nullptr) juce::FloatVectorOperations::clear(outputs[out], samples);
 
     std::array<float, kInputChannels> peaks{};
     std::array<float, kMixes> mixPeaks{};
 
-    const int availableInputs = std::min(numInputs, kInputChannels);
-    const int availableOutputs = std::min(numOutputs, kOutputChannels);
+    // Guard the fixed, preallocated buffers. Oversized callbacks are dropped
+    // safely rather than allocating memory on the real-time audio thread.
+    if (samples <= 0 || samples > kMaxBlockSize) {
+        for (auto& peak : inputPeaks_) peak.store(0.0f);
+        for (auto& peak : outputPeaks_) peak.store(0.0f);
+        return;
+    }
 
+    const int availableInputs = std::min(numInputs, kInputChannels);
     for (int channel = 0; channel < availableInputs; ++channel) {
         if (inputs[channel] == nullptr) continue;
         const auto range = juce::FloatVectorOperations::findMinAndMax(inputs[channel], samples);
         peaks[static_cast<size_t>(channel)] = juce::jmax(std::abs(range.getStart()), std::abs(range.getEnd()));
     }
 
-    // Cache per-channel controls once per block. This keeps trigonometric work
-    // and atomic reads out of the sample loop, reducing real-time CPU pressure.
+    // Cache per-channel controls once per block; no locks, allocation or
+    // trigonometric operations occur inside the sample loop.
     std::array<std::array<float, kInputChannels>, kMixes> gainLeft{};
     std::array<std::array<float, kInputChannels>, kMixes> gainRight{};
     std::array<std::array<bool, kInputChannels>, kMixes> enabled{};
@@ -80,18 +90,12 @@ void AudioEngine::audioDeviceIOCallbackWithContext(const float* const* inputs, i
         }
     }
 
-    // Every musician mix has its own gain, pan and mute state for each input.
-    // The callback performs no locks or memory allocation.
+    // Render every AUX bus regardless of physical output availability.
     for (int mix = 0; mix < kMixes; ++mix) {
-        const int left = mix * 2;
-        const int right = left + 1;
-        if (left >= availableOutputs) break;
-        float* outL = outputs[left];
-        float* outR = right < availableOutputs ? outputs[right] : nullptr;
-        if (outL == nullptr) continue;
-
-        float peak = 0.0f;
         const auto m = static_cast<size_t>(mix);
+        float* const outL = mixBusBuffers_[static_cast<size_t>(mix * 2)].data();
+        float* const outR = mixBusBuffers_[static_cast<size_t>(mix * 2 + 1)].data();
+        float peak = 0.0f;
         for (int sample = 0; sample < samples; ++sample) {
             float l = 0.0f, r = 0.0f;
             for (int channel = 0; channel < availableInputs; ++channel) {
@@ -104,7 +108,7 @@ void AudioEngine::audioDeviceIOCallbackWithContext(const float* const* inputs, i
             l = juce::jlimit(-0.98f, 0.98f, l);
             r = juce::jlimit(-0.98f, 0.98f, r);
             outL[sample] = l;
-            if (outR != nullptr) outR[sample] = r;
+            outR[sample] = r;
             peak = juce::jmax(peak, juce::jmax(std::abs(l), std::abs(r)));
         }
         mixPeaks[m] = peak;
