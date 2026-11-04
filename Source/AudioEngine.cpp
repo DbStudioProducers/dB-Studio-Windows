@@ -60,6 +60,26 @@ void AudioEngine::audioDeviceIOCallbackWithContext(const float* const* inputs, i
         peaks[static_cast<size_t>(channel)] = juce::jmax(std::abs(range.getStart()), std::abs(range.getEnd()));
     }
 
+    // Cache per-channel controls once per block. This keeps trigonometric work
+    // and atomic reads out of the sample loop, reducing real-time CPU pressure.
+    std::array<std::array<float, kInputChannels>, kMixes> gainLeft{};
+    std::array<std::array<float, kInputChannels>, kMixes> gainRight{};
+    std::array<std::array<bool, kInputChannels>, kMixes> enabled{};
+    for (int mix = 0; mix < kMixes; ++mix) {
+        const auto m = static_cast<size_t>(mix);
+        for (int channel = 0; channel < availableInputs; ++channel) {
+            const auto ch = static_cast<size_t>(channel);
+            const bool active = inputs[channel] != nullptr && !inputMutes_[m][ch].load();
+            enabled[m][ch] = active;
+            if (!active) continue;
+            const float gain = inputGains_[m][ch].load();
+            const float pan = inputPans_[m][ch].load();
+            const float angle = (pan + 1.0f) * 0.78539816339f;
+            gainLeft[m][ch] = gain * std::cos(angle);
+            gainRight[m][ch] = gain * std::sin(angle);
+        }
+    }
+
     // Every musician mix has its own gain, pan and mute state for each input.
     // The callback performs no locks or memory allocation.
     for (int mix = 0; mix < kMixes; ++mix) {
@@ -71,17 +91,15 @@ void AudioEngine::audioDeviceIOCallbackWithContext(const float* const* inputs, i
         if (outL == nullptr) continue;
 
         float peak = 0.0f;
+        const auto m = static_cast<size_t>(mix);
         for (int sample = 0; sample < samples; ++sample) {
             float l = 0.0f, r = 0.0f;
             for (int channel = 0; channel < availableInputs; ++channel) {
-                const auto m = static_cast<size_t>(mix);
                 const auto ch = static_cast<size_t>(channel);
-                if (inputs[channel] == nullptr || inputMutes_[m][ch].load()) continue;
-                const float value = inputs[channel][sample] * inputGains_[m][ch].load();
-                const float pan = inputPans_[m][ch].load();
-                const float angle = (pan + 1.0f) * 0.78539816339f;
-                l += value * std::cos(angle);
-                r += value * std::sin(angle);
+                if (!enabled[m][ch]) continue;
+                const float input = inputs[channel][sample];
+                l += input * gainLeft[m][ch];
+                r += input * gainRight[m][ch];
             }
             l = juce::jlimit(-0.98f, 0.98f, l);
             r = juce::jlimit(-0.98f, 0.98f, r);
@@ -89,7 +107,7 @@ void AudioEngine::audioDeviceIOCallbackWithContext(const float* const* inputs, i
             if (outR != nullptr) outR[sample] = r;
             peak = juce::jmax(peak, juce::jmax(std::abs(l), std::abs(r)));
         }
-        mixPeaks[static_cast<size_t>(mix)] = peak;
+        mixPeaks[m] = peak;
     }
 
     for (int channel = 0; channel < kInputChannels; ++channel)
