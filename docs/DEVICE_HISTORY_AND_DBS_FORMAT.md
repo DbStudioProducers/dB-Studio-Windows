@@ -18,7 +18,7 @@ Privacy and retention controls should be provided before public release. Do not 
 
 ## 2. Native scene file: .dBs
 
-.dBs is the official planned extension for dB Studio scene files. The same file format and schema must be readable and writable by desktop and mobile clients. The extension is case-insensitive on import; the canonical extension is .dBs.
+.dBs is the official planned extension for dB Studio scene files. The same file format and schema must be readable and writable by desktop and mobile clients. Each application saves scenes locally on the device where they are created. There is no automatic cloud synchronization, background transfer, or requirement to keep a duplicate scene library on another device. The extension is case-insensitive on import; the canonical extension is .dBs.
 
 ### Container and portability
 
@@ -58,14 +58,14 @@ A scene stores configuration, not live audio streams or a recording of the perfo
 
 ## 3. User workflows
 
-Desktop and mobile should both support Save Scene, Save Scene As, Open Scene, Import Scene, and Export/Share Scene. The mobile application may store a local copy and synchronize/share it with the desktop server. Conflict handling must be explicit; do not silently overwrite a newer scene.
+Desktop and mobile should both support Save Scene, Save Scene As, and Open Scene using the local storage of that device. A scene created on a phone remains on that phone; a scene created on the desktop remains on the desktop. Optional user-initiated export/share or manual import may be offered for backup or transfer, but must never run automatically. Avoid keeping redundant copies or transmitting scene files in the background. The format should remain compact: store only scene configuration, omit audio/media payloads and unnecessary assets, and use compression. The user controls any copy or transfer.
 
 ## 4. Implementation order
 
 1. Define and test the versioned schema and ZIP package reader/writer.
 2. Add desktop save/open UI and atomic persistence.
 3. Add mobile-compatible conformance tests and implement the same schema in the receiver app.
-4. Add scene synchronization/import/export and migration tests.
+4. Add optional manual export/import and migration tests; do not implement automatic scene synchronization.
 5. Add persistent connection-session storage and the Connection History interface.
 
 These are requirements and design decisions until code and automated tests demonstrate otherwise.
