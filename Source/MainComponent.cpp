@@ -48,7 +48,7 @@ MainComponent::MainComponent() {
     devicesButton_.onClick = [this] {
         auto* selector = new juce::AudioDeviceSelectorComponent(
             engine_.deviceManager(), 0, AudioEngine::kInputChannels,
-            0, AudioEngine::kOutputChannels, false, false, true, false);
+            0, 2, false, false, true, false);
         selector->setSize(680, 520);
         juce::DialogWindow::LaunchOptions options;
         options.content.setOwned(selector);
