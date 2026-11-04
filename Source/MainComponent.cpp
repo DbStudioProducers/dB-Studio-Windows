@@ -8,7 +8,7 @@ const juce::Colour muted{0xff929ba3};
 }
 
 MainComponent::MainComponent() {
-    setSize(1180, 720);
+    setSize(1320, 850);
     title_.setText("dB STUDIO", juce::dontSendNotification);
     title_.setFont(juce::Font(27.0f, juce::Font::bold));
     title_.setColour(juce::Label::textColourId, juce::Colours::white);
@@ -18,28 +18,24 @@ MainComponent::MainComponent() {
     status_.setColour(juce::Label::textColourId, green);
     addAndMakeVisible(status_);
 
-    deviceSummary_.setColour(juce::Label::textColourId, juce::Colours::white);
-    deviceSummary_.setJustificationType(juce::Justification::topLeft);
-    addAndMakeVisible(deviceSummary_);
-
-    meterSummary_.setColour(juce::Label::textColourId, green);
-    meterSummary_.setJustificationType(juce::Justification::topLeft);
-    addAndMakeVisible(meterSummary_);
-
-    note_.setText("Base nativa inicial: detecção de dispositivos e callback de áudio. "
-                  "O roteamento avançado, DSP por canal e rede serão integrados nas próximas etapas.",
-                  juce::dontSendNotification);
-    note_.setColour(juce::Label::textColourId, muted);
-    note_.setJustificationType(juce::Justification::topLeft);
-    addAndMakeVisible(note_);
+    mixLabel_.setColour(juce::Label::textColourId, juce::Colours::white);
+    addAndMakeVisible(mixLabel_);
+    for (int mix = 0; mix < AudioEngine::kMixes; ++mix)
+        mixSelector_.addItem("MIX " + juce::String(mix + 1).paddedLeft('0', 2), mix + 1);
+    mixSelector_.setSelectedId(1, juce::dontSendNotification);
+    mixSelector_.onChange = [this] {
+        selectedMix_ = mixSelector_.getSelectedId() - 1;
+        loadSelectedMix();
+    };
+    addAndMakeVisible(mixSelector_);
 
     devicesButton_.onClick = [this] {
-        selector_ = std::make_unique<juce::AudioDeviceSelectorComponent>(
+        auto* selector = new juce::AudioDeviceSelectorComponent(
             engine_.deviceManager(), 0, AudioEngine::kInputChannels,
             0, AudioEngine::kOutputChannels, false, false, true, false);
-        selector_->setSize(650, 500);
+        selector->setSize(680, 520);
         juce::DialogWindow::LaunchOptions options;
-        options.content.setOwned(selector_.release());
+        options.content.setOwned(selector);
         options.dialogTitle = "Dispositivos de áudio";
         options.dialogBackgroundColour = panel;
         options.escapeKeyTriggersCloseButton = true;
@@ -49,16 +45,64 @@ MainComponent::MainComponent() {
     };
     addAndMakeVisible(devicesButton_);
 
+    for (int i = 0; i < AudioEngine::kInputChannels; ++i) {
+        auto& label = channelLabels_[static_cast<size_t>(i)];
+        label.setText("IN " + juce::String(i + 1).paddedLeft('0', 2), juce::dontSendNotification);
+        label.setJustificationType(juce::Justification::centred);
+        label.setColour(juce::Label::textColourId, green);
+        channelGrid_.addAndMakeVisible(label);
+
+        auto& gain = gainSliders_[static_cast<size_t>(i)];
+        gain.setSliderStyle(juce::Slider::LinearVertical);
+        gain.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 58, 18);
+        gain.setRange(0.0, 2.0, 0.01);
+        gain.setColour(juce::Slider::thumbColourId, green);
+        gain.setColour(juce::Slider::trackColourId, juce::Colour(0xff3a4540));
+        gain.onValueChange = [this, i] {
+            engine_.setMixInputGain(selectedMix_, i, static_cast<float>(gainSliders_[static_cast<size_t>(i)].getValue()));
+        };
+        channelGrid_.addAndMakeVisible(gain);
+
+        auto& pan = panSliders_[static_cast<size_t>(i)];
+        pan.setSliderStyle(juce::Slider::LinearHorizontal);
+        pan.setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0);
+        pan.setRange(-1.0, 1.0, 0.01);
+        pan.setColour(juce::Slider::thumbColourId, juce::Colours::white);
+        pan.onValueChange = [this, i] {
+            engine_.setMixInputPan(selectedMix_, i, static_cast<float>(panSliders_[static_cast<size_t>(i)].getValue()));
+        };
+        channelGrid_.addAndMakeVisible(pan);
+
+        auto& mute = muteButtons_[static_cast<size_t>(i)];
+        mute.setButtonText("MUTE");
+        mute.setClickingTogglesState(true);
+        mute.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff3a2525));
+        mute.setColour(juce::TextButton::buttonOnColourId, juce::Colour(0xffc62828));
+        mute.onClick = [this, i] {
+            engine_.setMixInputMuted(selectedMix_, i, muteButtons_[static_cast<size_t>(i)].getToggleState());
+        };
+        channelGrid_.addAndMakeVisible(mute);
+    }
+    addAndMakeVisible(channelGrid_);
+
+    deviceSummary_.setColour(juce::Label::textColourId, muted);
+    deviceSummary_.setJustificationType(juce::Justification::centredLeft);
+    addAndMakeVisible(deviceSummary_);
+
     diagnostics_.setMultiLine(true);
     diagnostics_.setReadOnly(true);
     diagnostics_.setColour(juce::TextEditor::backgroundColourId, panel);
     diagnostics_.setColour(juce::TextEditor::textColourId, juce::Colours::white);
-    diagnostics_.setText("Diagnóstico do dispositivo será atualizado automaticamente.");
     addAndMakeVisible(diagnostics_);
+
+    footer_.setText("32 ENTRADAS  |  16 MIXES ESTÉREO  |  PROCESSAMENTO FLOAT32", juce::dontSendNotification);
+    footer_.setColour(juce::Label::textColourId, muted);
+    addAndMakeVisible(footer_);
 
     const auto error = engine_.initialise();
     status_.setText(error.isEmpty() ? "MOTOR JUCE ATIVO" : "ÁUDIO INDISPONÍVEL: " + error,
                     juce::dontSendNotification);
+    loadSelectedMix();
     refreshDeviceSummary();
     startTimerHz(5);
 }
@@ -71,64 +115,68 @@ MainComponent::~MainComponent() {
 void MainComponent::paint(juce::Graphics& g) {
     g.fillAll(background);
     g.setColour(panel);
-    g.fillRoundedRectangle(getLocalBounds().toFloat().reduced(18).removeFromBottom(getHeight() - 110), 8.0f);
+    g.fillRoundedRectangle(getLocalBounds().toFloat().reduced(16), 9.0f);
     g.setColour(green);
-    g.fillRect(18, 92, getWidth() - 36, 2);
+    g.fillRect(18, 86, getWidth() - 36, 2);
+    g.setColour(juce::Colour(0xff30363b));
+    for (int row = 0; row < 4; ++row)
+        g.drawRoundedRectangle(28.0f, 150.0f + row * 145.0f, static_cast<float>(getWidth() - 56),
+                               137.0f, 5.0f, 1.0f);
 }
 
 void MainComponent::resized() {
     auto area = getLocalBounds().reduced(28);
-    auto header = area.removeFromTop(55);
-    title_.setBounds(header.removeFromLeft(320));
-    status_.setBounds(header);
-    area.removeFromTop(28);
-    devicesButton_.setBounds(area.removeFromTop(42).removeFromLeft(250));
-    area.removeFromTop(18);
-    deviceSummary_.setBounds(area.removeFromTop(90));
-    area.removeFromTop(10);
-    meterSummary_.setBounds(area.removeFromTop(160));
-    area.removeFromTop(10);
-    note_.setBounds(area.removeFromTop(55));
-    area.removeFromTop(8);
-    diagnostics_.setBounds(area);
+    auto header = area.removeFromTop(48);
+    title_.setBounds(header.removeFromLeft(260));
+    status_.setBounds(header.removeFromLeft(330));
+    devicesButton_.setBounds(header.removeFromRight(170).reduced(2));
+    area.removeFromTop(14);
+    auto controls = area.removeFromTop(38);
+    mixLabel_.setBounds(controls.removeFromLeft(130));
+    mixSelector_.setBounds(controls.removeFromLeft(150));
+    deviceSummary_.setBounds(controls);
+    area.removeFromTop(12);
+    auto gridArea = area.removeFromTop(590);
+    const int cellW = (gridArea.getWidth() - 24) / 8;
+    const int cellH = (gridArea.getHeight() - 18) / 4;
+    for (int i = 0; i < AudioEngine::kInputChannels; ++i) {
+        const int col = i % 8, row = i / 8;
+        auto cell = juce::Rectangle<int>(gridArea.getX() + col * (cellW + 3),
+                                         gridArea.getY() + row * (cellH + 4), cellW, cellH);
+        channelLabels_[static_cast<size_t>(i)].setBounds(cell.removeFromTop(22));
+        muteButtons_[static_cast<size_t>(i)].setBounds(cell.removeFromBottom(24).reduced(8, 1));
+        panSliders_[static_cast<size_t>(i)].setBounds(cell.removeFromBottom(22).reduced(5, 0));
+        gainSliders_[static_cast<size_t>(i)].setBounds(cell.reduced(12, 0));
+    }
+    area.removeFromTop(6);
+    diagnostics_.setBounds(area.removeFromTop(55));
+    footer_.setBounds(area);
 }
 
-void MainComponent::timerCallback() {
-    refreshDeviceSummary();
+void MainComponent::timerCallback() { refreshDeviceSummary(); }
+
+void MainComponent::loadSelectedMix() {
+    for (int i = 0; i < AudioEngine::kInputChannels; ++i) {
+        const auto index = static_cast<size_t>(i);
+        gainSliders_[index].setValue(engine_.mixInputGain(selectedMix_, i), juce::dontSendNotification);
+        panSliders_[index].setValue(engine_.mixInputPan(selectedMix_, i), juce::dontSendNotification);
+        muteButtons_[index].setToggleState(engine_.mixInputMuted(selectedMix_, i), juce::dontSendNotification);
+    }
 }
 
 void MainComponent::refreshDeviceSummary() {
     auto* device = engine_.deviceManager().getCurrentAudioDevice();
     if (device == nullptr) {
-        deviceSummary_.setText("Nenhum dispositivo de áudio ativo. Conecte um equipamento ou selecione um dispositivo padrão.",
-                               juce::dontSendNotification);
-        diagnostics_.setText("Estado: sem dispositivo ativo\nO aplicativo permanece aberto para configuração.");
+        deviceSummary_.setText("SEM DISPOSITIVO DE ÁUDIO", juce::dontSendNotification);
+        diagnostics_.setText("Nenhum dispositivo ativo. A tela de mixagem permanece disponível para configuração.");
         return;
     }
-
     const auto inputs = device->getActiveInputChannels().countNumberOfSetBits();
     const auto outputs = device->getActiveOutputChannels().countNumberOfSetBits();
-    deviceSummary_.setText("Dispositivo: " + device->getName()
-        + "\nEntradas ativas: " + juce::String(inputs)
-        + " | Saídas ativas: " + juce::String(outputs)
-        + "\nTaxa: " + juce::String(engine_.sampleRate(), 0)
-        + " Hz | Buffer: " + juce::String(engine_.blockSize()) + " samples",
+    deviceSummary_.setText(device->getName() + "  |  " + juce::String(inputs) + " IN / "
+        + juce::String(outputs) + " OUT  |  " + juce::String(engine_.sampleRate(), 0) + " Hz",
         juce::dontSendNotification);
-
-    juce::String meters = "PICOS DE ENTRADA (32 canais)\n";
-    for (int i = 0; i < AudioEngine::kInputChannels; ++i) {
-        meters += "IN " + juce::String(i + 1).paddedLeft('0', 2) + ": "
-            + juce::String(engine_.inputPeak(i), 3) + ((i % 4 == 3) ? "\n" : "     ");
-    }
-    meters += "\nPICOS DE SAÍDA (16 mixes estéreo)\n";
-    for (int i = 0; i < AudioEngine::kMixes; ++i)
-        meters += "MIX " + juce::String(i + 1).paddedLeft('0', 2) + ": "
-            + juce::String(engine_.outputPeak(i), 3) + ((i % 4 == 3) ? "\n" : "     ");
-    meterSummary_.setText(meters, juce::dontSendNotification);
-    diagnostics_.setText("Dispositivo atual: " + device->getName()
-        + "\nTipo de driver: " + device->getTypeName()
-        + "\nEntradas/saídas: " + juce::String(inputs) + "/" + juce::String(outputs)
-        + "\nFormato de processamento: float32 interno"
-        + "\nNota: mixes 2–16 exigem saídas físicas multicanais.");
+    diagnostics_.setText("Driver: " + device->getTypeName() + " | Buffer: "
+        + juce::String(engine_.blockSize()) + " samples | Saídas estéreo independentes: "
+        + juce::String(outputs / 2) + " de 16 disponíveis.");
 }
-
