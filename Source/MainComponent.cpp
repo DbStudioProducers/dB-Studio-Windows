@@ -202,6 +202,6 @@ void MainComponent::refreshDeviceSummary() {
         + juce::String(outputs) + " OUT  |  " + juce::String(engine_.sampleRate(), 0) + " Hz",
         juce::dontSendNotification);
     diagnostics_.setText("Driver: " + device->getTypeName() + " | Buffer: "
-        + juce::String(engine_.blockSize()) + " samples | Saídas estéreo independentes: "
-        + juce::String(outputs / 2) + " de 16 disponíveis.");
+        + juce::String(engine_.blockSize()) + " samples | 16 AUX estéreo internos preparados para distribuição Wi-Fi. "
+        "Saída física opcional para monitoração.");
 }
