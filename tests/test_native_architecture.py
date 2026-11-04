@@ -36,7 +36,7 @@ class NativeArchitectureChecks(unittest.TestCase):
         self.assertIn('Connection History', spec)
         self.assertIn('.dBs', spec)
         self.assertIn('multitrack recording', spec.lower())
-        self.assertIn('not implemented yet', spec.lower())
+        self.assertIn('does not claim these features are implemented yet', spec.lower())
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)
