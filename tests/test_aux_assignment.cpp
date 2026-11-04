@@ -16,47 +16,47 @@ int main() {
     AuxAssignmentRegistry::Assignment found;
 
     CHECK(registry.assignedCount() == 0);
-    assert(registry.assign("", "Sem ID", 0) == AuxAssignmentRegistry::Result::invalidDeviceId);
-    assert(registry.assign("device-a", "Guitarra", 16) == AuxAssignmentRegistry::Result::invalidMix);
-    assert(registry.assign("device-a", "Guitarra", 0) == AuxAssignmentRegistry::Result::success);
-    assert(registry.assign("device-a", "Outro nome", 1) == AuxAssignmentRegistry::Result::deviceAlreadyAssigned);
-    assert(registry.assign("device-b", "Vocal", 0) == AuxAssignmentRegistry::Result::mixAlreadyAssigned);
-    assert(registry.assignedCount() == 1);
+    CHECK(registry.assign("", "Sem ID", 0) == AuxAssignmentRegistry::Result::invalidDeviceId);
+    CHECK(registry.assign("device-a", "Guitarra", 16) == AuxAssignmentRegistry::Result::invalidMix);
+    CHECK(registry.assign("device-a", "Guitarra", 0) == AuxAssignmentRegistry::Result::success);
+    CHECK(registry.assign("device-a", "Outro nome", 1) == AuxAssignmentRegistry::Result::deviceAlreadyAssigned);
+    CHECK(registry.assign("device-b", "Vocal", 0) == AuxAssignmentRegistry::Result::mixAlreadyAssigned);
+    CHECK(registry.assignedCount() == 1);
 
-    assert(registry.renameDevice("device-a", "Guitarra Lead") == AuxAssignmentRegistry::Result::success);
-    assert(registry.findByDevice("device-a", found));
-    assert(found.displayName == "Guitarra Lead");
-    assert(found.mixIndex == 0);
-    assert(registry.findByMix(0, found));
-    assert(found.deviceId == "device-a");
-    assert(!registry.findByMix(1, found));
-    assert(!registry.findByMix(16, found));
+    CHECK(registry.renameDevice("device-a", "Guitarra Lead") == AuxAssignmentRegistry::Result::success);
+    CHECK(registry.findByDevice("device-a", found));
+    CHECK(found.displayName == "Guitarra Lead");
+    CHECK(found.mixIndex == 0);
+    CHECK(registry.findByMix(0, found));
+    CHECK(found.deviceId == "device-a");
+    CHECK(!registry.findByMix(1, found));
+    CHECK(!registry.findByMix(16, found));
 
     for (std::size_t mix = 1; mix < AuxAssignmentRegistry::kMixCount; ++mix) {
         const auto id = "device-" + std::to_string(mix + 1);
-        assert(registry.assign(id, id, mix) == AuxAssignmentRegistry::Result::success);
+        CHECK(registry.assign(id, id, mix) == AuxAssignmentRegistry::Result::success);
     }
-    assert(registry.assignedCount() == 16);
-    assert(registry.assign("device-overflow", "Overflow", 0) == AuxAssignmentRegistry::Result::mixAlreadyAssigned);
-    assert(registry.unassignDevice("device-a") == AuxAssignmentRegistry::Result::success);
-    assert(registry.unassignDevice("device-a") == AuxAssignmentRegistry::Result::deviceNotFound);
-    assert(registry.assign("device-new", "Novo músico", 0) == AuxAssignmentRegistry::Result::success);
-    assert(registry.assignedCount() == 16);
-    assert(registry.findByMix(0, found) && found.deviceId == "device-new");
+    CHECK(registry.assignedCount() == 16);
+    CHECK(registry.assign("device-overflow", "Overflow", 0) == AuxAssignmentRegistry::Result::mixAlreadyAssigned);
+    CHECK(registry.unassignDevice("device-a") == AuxAssignmentRegistry::Result::success);
+    CHECK(registry.unassignDevice("device-a") == AuxAssignmentRegistry::Result::deviceNotFound);
+    CHECK(registry.assign("device-new", "Novo músico", 0) == AuxAssignmentRegistry::Result::success);
+    CHECK(registry.assignedCount() == 16);
+    CHECK(registry.findByMix(0, found) && found.deviceId == "device-new");
 
     const std::string path = "dbstudio_aux_registry_test.dbsaux";
-    assert(registry.saveToFile(path) == AuxAssignmentRegistry::Result::success);
+    CHECK(registry.saveToFile(path) == AuxAssignmentRegistry::Result::success);
     AuxAssignmentRegistry restored;
-    assert(restored.loadFromFile(path) == AuxAssignmentRegistry::Result::success);
-    assert(restored.assignedCount() == 16);
-    assert(restored.findByDevice("device-new", found));
-    assert(found.displayName == "Novo músico");
-    assert(found.mixIndex == 0);
+    CHECK(restored.loadFromFile(path) == AuxAssignmentRegistry::Result::success);
+    CHECK(restored.assignedCount() == 16);
+    CHECK(restored.findByDevice("device-new", found));
+    CHECK(found.displayName == "Novo músico");
+    CHECK(found.mixIndex == 0);
     { std::ofstream corrupt(path, std::ios::binary | std::ios::trunc);
       corrupt << "DBSAUX1\n0\t4141\t4262\n0\t4343\t4464\n"; }
-    assert(restored.loadFromFile(path) == AuxAssignmentRegistry::Result::invalidData);
-    assert(restored.assignedCount() == 16);
-    assert(restored.findByDevice("device-new", found));
+    CHECK(restored.loadFromFile(path) == AuxAssignmentRegistry::Result::invalidData);
+    CHECK(restored.assignedCount() == 16);
+    CHECK(restored.findByDevice("device-new", found));
     std::remove(path.c_str());
     return 0;
 }
