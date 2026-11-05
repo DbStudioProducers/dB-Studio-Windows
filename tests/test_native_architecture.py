@@ -1,5 +1,4 @@
 from pathlib import Path
-import re
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -11,15 +10,14 @@ class NativeArchitectureChecks(unittest.TestCase):
         cls.engine_h = (ROOT / 'Source' / 'AudioEngine.h').read_text(encoding='utf-8')
         cls.engine_cpp = (ROOT / 'Source' / 'AudioEngine.cpp').read_text(encoding='utf-8')
         cls.renderer = (ROOT / 'Source' / 'MixRenderer.h').read_text(encoding='utf-8')
-        cls.readme = (ROOT / 'README.md').read_text(encoding='utf-8')
 
     def test_juce_8_is_pinned(self):
-        self.assertRegex(self.cmake, r'GIT_TAG\\s+8\\.0\\.6')
+        self.assertIn('GIT_TAG 8.0.6', self.cmake)
 
     def test_audio_architecture_has_32_inputs_and_16_stereo_mixes(self):
-        self.assertRegex(self.renderer, r'kInputs\\s*=\\s*32')
-        self.assertRegex(self.renderer, r'kMixes\\s*=\\s*16')
-        self.assertRegex(self.renderer, r'kBuses\\s*=\\s*kMixes\\s*\\*\\s*2')
+        self.assertIn('constexpr int kInputs = 32;', self.renderer)
+        self.assertIn('constexpr int kMixes = 16;', self.renderer)
+        self.assertIn('constexpr int kBuses = kMixes * 2;', self.renderer)
         self.assertIn('DbStudioMix::kInputs', self.engine_h)
         self.assertIn('DbStudioMix::kMixes', self.engine_h)
         self.assertIn('DbStudioMix::kBuses', self.engine_h)
@@ -39,7 +37,7 @@ class NativeArchitectureChecks(unittest.TestCase):
         self.assertIn('std::clamp(r, -0.98f, 0.98f)', self.renderer)
 
     def test_network_handoff_is_bounded_and_non_blocking(self):
-        self.assertRegex(self.engine_h, r'kQueueSlots\\s*=\\s*3')
+        self.assertIn('kQueueSlots = 3', self.engine_h)
         self.assertIn('droppedNetworkBlocks_', self.engine_h)
         self.assertIn('queueWrite_.store(write + 1, std::memory_order_release)', self.engine_cpp)
         self.assertIn('droppedNetworkBlocks_.fetch_add(1, std::memory_order_relaxed)', self.engine_cpp)
