@@ -37,10 +37,10 @@ class NativeArchitectureChecks(unittest.TestCase):
         self.assertIn('std::clamp(r, -0.98f, 0.98f)', self.renderer)
 
     def test_network_handoff_is_bounded_and_non_blocking(self):
-        self.assertIn('kQueueSlots = 3', self.engine_h)
-        self.assertIn('droppedNetworkBlocks_', self.engine_h)
-        self.assertIn('queueWrite_.store(write + 1, std::memory_order_release)', self.engine_cpp)
-        self.assertIn('droppedNetworkBlocks_.fetch_add(1, std::memory_order_relaxed)', self.engine_cpp)
+        self.assertIn('SpscAudioBlockQueue<kOutputChannels, kMaxBlockSize, 3>', self.engine_h)
+        self.assertIn('networkQueue_.tryPush(networkChannels.data(), samples)', self.engine_cpp)
+        self.assertIn('networkQueue_.tryAcquire(view)', self.engine_cpp)
+        self.assertIn('SpscAudioQueue', self.cmake)
 
     def test_product_requirements_are_documented_not_misrepresented_as_complete(self):
         spec = (ROOT / 'docs' / 'DEVICE_HISTORY_AND_DBS_FORMAT.md').read_text(encoding='utf-8')
