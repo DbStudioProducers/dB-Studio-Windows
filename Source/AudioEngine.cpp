@@ -66,8 +66,13 @@ void AudioEngine::audioDeviceIOCallbackWithContext(const float* const* inputs, i
     const int availableInputs = std::min(numInputs, kInputChannels);
     for (int channel = 0; channel < availableInputs; ++channel) {
         if (inputs[channel] == nullptr) continue;
-        const auto range = juce::FloatVectorOperations::findMinAndMax(inputs[channel], samples);
-        peaks[static_cast<size_t>(channel)] = juce::jmax(std::abs(range.getStart()), std::abs(range.getEnd()));
+        float peak = 0.0f;
+        for (int sample = 0; sample < samples; ++sample) {
+            const float value = inputs[channel][sample];
+            if (std::isfinite(value))
+                peak = juce::jmax(peak, std::abs(value));
+        }
+        peaks[static_cast<size_t>(channel)] = peak;
     }
 
     // Cache per-channel controls once per block; no locks, allocation or
@@ -101,7 +106,10 @@ void AudioEngine::audioDeviceIOCallbackWithContext(const float* const* inputs, i
             for (int channel = 0; channel < availableInputs; ++channel) {
                 const auto ch = static_cast<size_t>(channel);
                 if (!enabled[m][ch]) continue;
-                const float input = inputs[channel][sample];
+                const float rawInput = inputs[channel][sample];
+                // A single corrupt sample must never propagate NaN/Inf through
+                // an entire AUX bus or into the Wi-Fi handoff queue.
+                const float input = std::isfinite(rawInput) ? rawInput : 0.0f;
                 l += input * gainLeft[m][ch];
                 r += input * gainRight[m][ch];
             }
@@ -164,11 +172,13 @@ float AudioEngine::outputPeak(int mix) const noexcept {
 
 void AudioEngine::setMixInputGain(int mix, int input, float gain) noexcept {
     if (mix >= 0 && mix < kMixes && input >= 0 && input < kInputChannels)
-        inputGains_[static_cast<size_t>(mix)][static_cast<size_t>(input)].store(juce::jlimit(0.0f, 2.0f, gain));
+        inputGains_[static_cast<size_t>(mix)][static_cast<size_t>(input)].store(
+            std::isfinite(gain) ? juce::jlimit(0.0f, 2.0f, gain) : 0.0f);
 }
 void AudioEngine::setMixInputPan(int mix, int input, float pan) noexcept {
     if (mix >= 0 && mix < kMixes && input >= 0 && input < kInputChannels)
-        inputPans_[static_cast<size_t>(mix)][static_cast<size_t>(input)].store(juce::jlimit(-1.0f, 1.0f, pan));
+        inputPans_[static_cast<size_t>(mix)][static_cast<size_t>(input)].store(
+            std::isfinite(pan) ? juce::jlimit(-1.0f, 1.0f, pan) : 0.0f);
 }
 void AudioEngine::setMixInputMuted(int mix, int input, bool muted) noexcept {
     if (mix >= 0 && mix < kMixes && input >= 0 && input < kInputChannels)
