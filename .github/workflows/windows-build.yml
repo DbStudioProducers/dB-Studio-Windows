@@ -38,7 +38,7 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-  legacy-virtual-lab:
+  python-virtual-lab:
     runs-on: windows-2022
     steps:
       - name: Checkout
@@ -48,13 +48,11 @@ jobs:
         with:
           python-version: "3.10"
           architecture: "x64"
-      - name: Install legacy lab dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-      - name: Python syntax check
-        run: python -m py_compile run_desktop.py run_virtual_lab.py db_studio/ui_screens.py
-      - name: Run legacy unit tests
+      - name: Install virtual-lab dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Check virtual-lab Python syntax
+        run: python -m py_compile run_virtual_lab.py db_studio/mixer.py db_studio/protocol.py db_studio/simulator.py
+      - name: Run virtual-lab unit tests
         run: python -m unittest discover -s tests -v
       - name: Run virtual audio lab
         run: python run_virtual_lab.py --seconds 1.5 --rate 48000 --blocksize 128
