@@ -19,8 +19,10 @@ USB and Ethernet are alternative input paths in the initial design, not automati
 2. Install CMake 3.22 or newer.
 3. Run:
    ```powershell
-   cmake -S . -B build -A x64
-   cmake --build build --config Release --parallel 2
+   cmake -S . -B build -A x64 -DBUILD_TESTING=ON
+   cmake --build build --config Release --target dBStudioCoreTests dBStudioMixTests
+   ctest --test-dir build -C Release --output-on-failure
+   cmake --build build --config Release --target dBStudio --parallel 2
    ```
 CMake downloads the pinned JUCE 8.0.6 source during configuration.
 
@@ -55,16 +57,15 @@ No claim of universal compatibility is made. USB multichannel devices expose onl
 
 ## Validation
 
-GitHub Actions builds the native application and separately runs the legacy Python syntax, unit and virtual-lab checks. A successful compile validates compilation only; it does not validate Wi-Fi audio latency, packet loss, mobile playback or physical audio hardware.
+GitHub Actions first checks the native architecture, builds the focused C++ verification executables, and runs CTest before compiling the desktop application. A separate compatibility job runs the retained Python virtual-lab syntax, unit and simulation checks. The Python lab is retained as a test harness, not as the production desktop application. A successful compile validates compilation only; it does not validate Wi-Fi audio latency, packet loss, mobile playback or physical audio hardware.
 
 ## Next implementation milestones
 
-1. Extract a dedicated 16-bus stereo mix renderer independent of physical output count, enforcing one receiver per AUX.
-2. Add a preallocated bounded audio-block queue and separate Wi-Fi/network sender.
-3. Define and test a versioned audio packet format, stream identifiers, sequence numbers and timestamps.
-4. Implement receiver jitter buffer, packet-loss concealment policy and reconnection.
-5. Add device registration, naming, exclusive one-device-to-one-AUX assignment and master-role authentication.
-6. Add a persistent connection history with device name/identity, connect and disconnect timestamps, total session duration and reconnect events.
-7. Implement portable scene save/load using the native .dBs format on desktop and mobile, with versioned schema, validation, integrity checks and safe migrations.
-8. Add desktop multitrack recording for up to 32 independent inputs, with aligned tracks, recovery, Save As and batch export to WAV, FLAC and MP3 after encoder/licensing validation.
-9. Add mobile receivers and validate end-to-end latency on a dedicated Wi-Fi access point.
+1. Strengthen automated coverage of gain, pan, mute, peak metering, isolation between AUX buses and queue ownership.
+2. Define and test a versioned audio packet format, stream identifiers, sequence numbers and timestamps.
+3. Implement the dedicated Wi-Fi sender and mobile receiver with jitter buffering, loss/reorder handling and reconnect.
+4. Connect receiver discovery and authentication to the exclusive one-device-to-one-AUX registry; add delegated master permissions.
+5. Add persistent connection history with stable identity, session timestamps, duration and safe crash recovery.
+6. Implement portable `.dBs` scene save/load on desktop and mobile, with versioned schema, validation, integrity checks and safe migrations.
+7. Add desktop multitrack recording for up to 32 independent inputs, with aligned tracks, recovery, Save As and batch export after encoder/licensing validation.
+8. Validate end-to-end latency, packet loss and wired mobile playback on a dedicated Wi-Fi access point.
