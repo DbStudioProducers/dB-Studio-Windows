@@ -13,6 +13,7 @@ if(BUILD_TESTING)
   add_executable(dBStudioMixTests tests/test_mix_renderer.cpp)
   add_executable(dBStudioQueueTests tests/test_spsc_audio_queue.cpp)
   target_include_directories(dBStudioMixTests PRIVATE Source)
+  target_include_directories(dBStudioQueueTests PRIVATE Source)
 
   add_test(NAME AuxAssignmentRegistry COMMAND dBStudioCoreTests)
   add_test(NAME MixRenderer COMMAND dBStudioMixTests)
