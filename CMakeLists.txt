@@ -7,7 +7,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 include(CTest)
 
-add_executable(dBStudioCoreTests tests/test_aux_assignment.cpp)
+add_executable(dBStudioCoreTests tests/test_aux_assignment.cpp tests/test_mix_renderer.cpp)
 target_include_directories(dBStudioCoreTests PRIVATE Source)
 if(BUILD_TESTING)
   add_test(NAME AuxAssignmentRegistry COMMAND dBStudioCoreTests)
