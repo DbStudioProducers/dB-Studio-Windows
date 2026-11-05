@@ -31,7 +31,8 @@ int main() {
     left[3][0] = 0.5f;
     right[3][0] = 0.25f;
 
-    BusBuffers buses{};
+    // Keep the 1 MiB bus matrix off the Windows 1 MiB default thread stack.
+    static BusBuffers buses{};
     Peaks peaks{};
     render(inputs.data(), kInputs, frames, left, right, enabled, buses, peaks);
     CHECK(buses[0][0] == 0.5f && buses[1][0] == 0.5f);
