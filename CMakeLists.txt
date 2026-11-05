@@ -11,10 +11,12 @@ if(BUILD_TESTING)
   add_executable(dBStudioCoreTests tests/test_aux_assignment.cpp)
   target_include_directories(dBStudioCoreTests PRIVATE Source)
   add_executable(dBStudioMixTests tests/test_mix_renderer.cpp)
+  add_executable(dBStudioQueueTests tests/test_spsc_audio_queue.cpp)
   target_include_directories(dBStudioMixTests PRIVATE Source)
 
   add_test(NAME AuxAssignmentRegistry COMMAND dBStudioCoreTests)
   add_test(NAME MixRenderer COMMAND dBStudioMixTests)
+  add_test(NAME SpscAudioQueue COMMAND dBStudioQueueTests)
 endif()
 
 include(FetchContent)
@@ -40,6 +42,7 @@ target_sources(dBStudio PRIVATE
   Source/AudioEngine.h
   Source/AuxAssignmentRegistry.h
   Source/MixRenderer.h
+  Source/SpscAudioBlockQueue.h
   Source/MainComponent.cpp
   Source/MainComponent.h
 )
