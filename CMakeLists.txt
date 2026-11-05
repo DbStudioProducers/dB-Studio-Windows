@@ -7,11 +7,12 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 include(CTest)
 
-add_executable(dBStudioCoreTests tests/test_aux_assignment.cpp)
-target_include_directories(dBStudioCoreTests PRIVATE Source)
-add_executable(dBStudioMixTests tests/test_mix_renderer.cpp)
-target_include_directories(dBStudioMixTests PRIVATE Source)
 if(BUILD_TESTING)
+  add_executable(dBStudioCoreTests tests/test_aux_assignment.cpp)
+  target_include_directories(dBStudioCoreTests PRIVATE Source)
+  add_executable(dBStudioMixTests tests/test_mix_renderer.cpp)
+  target_include_directories(dBStudioMixTests PRIVATE Source)
+
   add_test(NAME AuxAssignmentRegistry COMMAND dBStudioCoreTests)
   add_test(NAME MixRenderer COMMAND dBStudioMixTests)
 endif()
