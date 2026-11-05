@@ -25,6 +25,12 @@ class NativeArchitectureChecks(unittest.TestCase):
         self.assertIn('for (int mix = 0; mix < kMixes; ++mix)', self.engine_cpp)
         self.assertIn('for (int out = 0; out < numOutputs; ++out)', self.engine_cpp)
 
+    def test_non_finite_audio_samples_and_controls_are_sanitized(self):
+        self.assertIn('std::isfinite(value)', self.engine_cpp)
+        self.assertIn('std::isfinite(rawInput) ? rawInput : 0.0f', self.engine_cpp)
+        self.assertIn('std::isfinite(gain)', self.engine_cpp)
+        self.assertIn('std::isfinite(pan)', self.engine_cpp)
+
     def test_network_handoff_is_bounded_and_non_blocking(self):
         self.assertRegex(self.engine_h, r'kQueueSlots\s*=\s*3')
         self.assertIn('droppedNetworkBlocks_', self.engine_h)
