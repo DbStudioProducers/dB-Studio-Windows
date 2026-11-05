@@ -3,6 +3,7 @@
 #include <string>
 #include <cstdio>
 #include <fstream>
+#include <filesystem>
 
 #define CHECK(condition) do { \
     if (!(condition)) { \
@@ -53,11 +54,14 @@ int main() {
     CHECK(restored.findByDevice("device-new", found));
     CHECK(found.displayName == "Novo músico");
     CHECK(found.mixIndex == 0);
-    { std::ofstream corrupt(path, std::ios::binary | std::ios::trunc);
-      corrupt << "DBSAUX1\n0\t4141\t4262\n0\t4343\t4464\n"; }
+    { std::ofstream corrupt(std::filesystem::u8path(path), std::ios::binary | std::ios::trunc);
+      CHECK(corrupt.good());
+      corrupt << "DBSAUX1\n0\t4141\t4262\n0\t4343\t4464\n";
+      corrupt.close();
+      CHECK(corrupt.good()); }
     CHECK(restored.loadFromFile(path) == AuxAssignmentRegistry::Result::invalidData);
     CHECK(restored.assignedCount() == 16);
     CHECK(restored.findByDevice("device-new", found));
-    std::remove(path.c_str());
+    std::filesystem::remove(std::filesystem::u8path(path));
     return 0;
 }
