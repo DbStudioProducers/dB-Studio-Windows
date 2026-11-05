@@ -37,7 +37,7 @@ public:
     int blockSize() const noexcept { return blockSize_.load(); }
     bool tryAcquireNetworkBlock(const float*& samples, int& frames, unsigned long long& sequence) noexcept;
     void releaseNetworkBlock() noexcept;
-    unsigned long long droppedNetworkBlocks() const noexcept { return droppedNetworkBlocks_.load(); }
+    unsigned long long droppedNetworkBlocks() const noexcept { return networkQueue_.droppedBlocks(); }
 
 private:
     juce::AudioDeviceManager deviceManager_;
@@ -53,14 +53,8 @@ private:
     // of the computer's physical output count. The network sender will consume
     // these through a bounded real-time-safe queue in the next networking step.
     DbStudioMix::BusBuffers mixBusBuffers_{};
-    static constexpr unsigned int kQueueSlots = 3;
-    struct NetworkBlock { std::array<float, kOutputChannels * kMaxBlockSize> samples{}; int frames = 0; unsigned long long sequence = 0; };
-    std::array<NetworkBlock, kQueueSlots> networkQueue_{};
-    alignas(64) std::atomic<unsigned int> queueWrite_{0};
-    alignas(64) std::atomic<unsigned int> queueRead_{0};
-    std::atomic<unsigned long long> nextSequence_{0};
-    std::atomic<unsigned long long> droppedNetworkBlocks_{0};
-    bool networkBlockAcquired_ = false;
+    using NetworkQueue = DbStudioAudio::SpscAudioBlockQueue<kOutputChannels, kMaxBlockSize, 3>;
+    NetworkQueue networkQueue_{};
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AudioEngine)
 };
