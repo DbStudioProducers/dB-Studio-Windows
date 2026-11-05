@@ -51,7 +51,8 @@ int main() {
     CHECK(near(buses[2][0], 0.25f) && near(buses[3][0], 0.25f));
     CHECK(near(buses[4][0], 0.75f) && near(buses[5][0], 0.75f));
     CHECK(near(buses[6][0], 0.0f) && near(buses[7][0], 0.0f));
-    CHECK(near(peaks[0], 0.5f) && near(peaks[1], 0.25f));
+    // Mix 0 contains a 2.0 sample that is clipped to 0.98 in a later frame.
+    CHECK(near(peaks[0], 0.98f) && near(peaks[1], 0.25f));
 
     // Per-side gain and pan law are supplied by the engine and applied independently.
     enabled[3][0] = true;
