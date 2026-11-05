@@ -2,13 +2,14 @@
 #include <juce_audio_utils/juce_audio_utils.h>
 #include <array>
 #include <atomic>
+#include "MixRenderer.h"
 
 class AudioEngine final : public juce::AudioIODeviceCallback {
 public:
-    static constexpr int kInputChannels = 32;
-    static constexpr int kMixes = 16;
-    static constexpr int kOutputChannels = 32; // Logical AUX channels: 16 stereo buses.
-    static constexpr int kMaxBlockSize = 8192;
+    static constexpr int kInputChannels = DbStudioMix::kInputs;
+    static constexpr int kMixes = DbStudioMix::kMixes;
+    static constexpr int kOutputChannels = DbStudioMix::kBuses; // Logical AUX channels: 16 stereo buses.
+    static constexpr int kMaxBlockSize = DbStudioMix::kMaxFrames;
 
     AudioEngine();
     ~AudioEngine() override;
@@ -51,7 +52,7 @@ private:
     // Preallocated internal AUX buses. Each mix owns L/R buffers independent
     // of the computer's physical output count. The network sender will consume
     // these through a bounded real-time-safe queue in the next networking step.
-    std::array<std::array<float, kMaxBlockSize>, kOutputChannels> mixBusBuffers_{};
+    DbStudioMix::BusBuffers mixBusBuffers_{};
     static constexpr unsigned int kQueueSlots = 3;
     struct NetworkBlock { std::array<float, kOutputChannels * kMaxBlockSize> samples{}; int frames = 0; unsigned long long sequence = 0; };
     std::array<NetworkBlock, kQueueSlots> networkQueue_{};
