@@ -32,7 +32,6 @@ public:
         block.frames = frames;
         block.sequence = nextSequence_++;
         for (std::size_t ch = 0; ch < Channels; ++ch) {
-            if (channels[ch] == nullptr) return false;
             std::copy_n(channels[ch], frames, block.samples.data() + ch * MaxFrames);
         }
         write_.store(write + 1, std::memory_order_release);
