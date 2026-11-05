@@ -1,4 +1,5 @@
 #include "AudioEngine.h"
+#include "MixRenderer.h"
 #include <algorithm>
 #include <cmath>
 
@@ -95,32 +96,9 @@ void AudioEngine::audioDeviceIOCallbackWithContext(const float* const* inputs, i
         }
     }
 
-    // Render every AUX bus regardless of physical output availability.
-    for (int mix = 0; mix < kMixes; ++mix) {
-        const auto m = static_cast<size_t>(mix);
-        float* const outL = mixBusBuffers_[static_cast<size_t>(mix * 2)].data();
-        float* const outR = mixBusBuffers_[static_cast<size_t>(mix * 2 + 1)].data();
-        float peak = 0.0f;
-        for (int sample = 0; sample < samples; ++sample) {
-            float l = 0.0f, r = 0.0f;
-            for (int channel = 0; channel < availableInputs; ++channel) {
-                const auto ch = static_cast<size_t>(channel);
-                if (!enabled[m][ch]) continue;
-                const float rawInput = inputs[channel][sample];
-                // A single corrupt sample must never propagate NaN/Inf through
-                // an entire AUX bus or into the Wi-Fi handoff queue.
-                const float input = std::isfinite(rawInput) ? rawInput : 0.0f;
-                l += input * gainLeft[m][ch];
-                r += input * gainRight[m][ch];
-            }
-            l = juce::jlimit(-0.98f, 0.98f, l);
-            r = juce::jlimit(-0.98f, 0.98f, r);
-            outL[sample] = l;
-            outR[sample] = r;
-            peak = juce::jmax(peak, juce::jmax(std::abs(l), std::abs(r)));
-        }
-        mixPeaks[m] = peak;
-    }
+    // Render all 16 stereo AUX buses with the shared, independently tested core.
+    DbStudioMix::render(inputs, availableInputs, samples, gainLeft, gainRight,
+                        enabled, mixBusBuffers_, mixPeaks);
 
 
     const auto write = queueWrite_.load(std::memory_order_relaxed);
