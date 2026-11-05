@@ -38,6 +38,8 @@ target_sources(dBStudio PRIVATE
   Source/Main.cpp
   Source/AudioEngine.cpp
   Source/AudioEngine.h
+  Source/AuxAssignmentRegistry.h
+  Source/MixRenderer.h
   Source/MainComponent.cpp
   Source/MainComponent.h
 )
