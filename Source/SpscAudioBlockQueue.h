@@ -23,7 +23,8 @@ public:
         if (channels == nullptr || frames <= 0 || static_cast<std::size_t>(frames) > MaxFrames)
             return false;
         for (std::size_t ch = 0; ch < Channels; ++ch)
-            if (channels[ch] == nullptr) return false;\n        const auto write = write_.load(std::memory_order_relaxed);
+            if (channels[ch] == nullptr) return false;
+        const auto write = write_.load(std::memory_order_relaxed);
         const auto read = read_.load(std::memory_order_acquire);
         if (write - read >= Slots) {
             dropped_.fetch_add(1, std::memory_order_relaxed);
