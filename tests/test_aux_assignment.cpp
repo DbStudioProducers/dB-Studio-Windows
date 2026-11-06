@@ -1,7 +1,6 @@
 #include "../Source/AuxAssignmentRegistry.h"
 #include <iostream>
 #include <string>
-#include <cstdio>
 #include <fstream>
 #include <filesystem>
 
@@ -17,6 +16,7 @@ int main() {
     AuxAssignmentRegistry::Assignment found;
 
     CHECK(registry.assignedCount() == 0);
+    CHECK(!registry.findByDevice("", found));
     CHECK(registry.assign("", "Sem ID", 0) == AuxAssignmentRegistry::Result::invalidDeviceId);
     CHECK(registry.assign("device-a", "Guitarra", 16) == AuxAssignmentRegistry::Result::invalidMix);
     CHECK(registry.assign("device-a", "Guitarra", 0) == AuxAssignmentRegistry::Result::success);
