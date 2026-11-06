@@ -2,14 +2,12 @@
 
 #include <array>
 #include <cstddef>
-#include <cstdio>
 #include <fstream>
 #include <filesystem>
 #include <system_error>
 #include <mutex>
 #include <string>
 #include <utility>
-#include <vector>
 #ifdef _WIN32
  #ifndef NOMINMAX
   #define NOMINMAX
@@ -60,6 +58,7 @@ public:
     }
 
     bool findByDevice(const std::string& deviceId, Assignment& result) const {
+        if (deviceId.empty()) return false;
         std::lock_guard<std::mutex> lock(mutex_);
         for (const auto& item : assignments_) if (item.deviceId == deviceId) {
             result = item; return true;
