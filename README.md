@@ -32,16 +32,17 @@ Run from the repository root in PowerShell:
 ```powershell
 python -m pip install -r requirements.txt
 python -m unittest tests/test_native_architecture.py -v
+python -m py_compile run_virtual_lab.py db_studio/mixer.py db_studio/protocol.py db_studio/simulator.py
 python -m unittest discover -s tests -v
 python run_virtual_lab.py --seconds 1.5 --rate 48000 --blocksize 128
 
 cmake -S . -B build -A x64 -DBUILD_TESTING=ON
-cmake --build build --config Release --target dBStudioCoreTests dBStudioMixTests dBStudioQueueTests
+cmake --build build --config Release --target dBStudioCoreTests dBStudioMixTests dBStudioQueueTests dBStudioAuthorizationTests
 ctest --test-dir build -C Release --output-on-failure
 cmake --build build --config Release --target dBStudio --parallel 2
 ```
 
-The verification sequence is intentional: architecture checks and Python regression/simulation checks, followed by native C++ test build and CTest; only after they pass should the application target be compiled. CMake fetches the pinned JUCE 8.0.6 source.
+The verification sequence is enforced in GitHub Actions: the architecture, Python regression and UDP loopback virtual-lab job must pass before the native job starts. The native job then configures CMake, builds all four C++ test executables, runs CTest, and only after those checks pass compiles the application and uploads its artifact. CMake fetches the pinned JUCE 8.0.6 source.
 
 ## Implemented native foundation
 
@@ -57,7 +58,7 @@ The registry is a tested core component, not yet connected to receiver discovery
 
 ## Implementation boundaries
 
-This branch is an engineering foundation, not a finished Wi-Fi IEM system. **Network audio streaming and mobile receiver clients are not implemented.** A future network sender must be the sole queue consumer, acquire/release each block exactly once and perform all network I/O outside the real-time callback. Packet sequencing, timestamps, receiver jitter buffering, loss/reorder handling, reconnect, authentication and encryption remain to be implemented and tested.
+This branch is an engineering foundation, not a finished Wi-Fi IEM system. **Network audio streaming and mobile receiver clients are not implemented.** A future network sender must be the sole queue consumer, acquire/release each block exactly once and perform all network I/O outside the real-time callback. The Python virtual lab has a versioned PCM packet draft with sequence and frame metadata, but it is not the production network protocol. Production timestamps, transport, receiver jitter buffering, loss/reorder handling, reconnect, authentication and encryption remain to be implemented and tested.
 
 Bluetooth headphone support is deferred. Android P2/USB-C automatic output routing is specified in `docs/MOBILE_PROTOCOL_AND_ROLES.md`; it cannot be marked implemented until the Android receiver application exists and is tested on supported devices. Battery and Wi-Fi signal can only be shown when a mobile OS or receiver app exposes reliable telemetry. Physical outputs are currently cleared and are not AUX destinations; the internal buses are prepared for future Wi-Fi distribution.
 
