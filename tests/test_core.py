@@ -49,6 +49,15 @@ class CoreTests(unittest.TestCase):
         normal_output = render_bus(audio, normal_mix)
         self.assertTrue(np.allclose(normal_output, 2 * expected_single, atol=1e-6))
 
+        # An invalid/out-of-range channel must not engage SOLO for this mix.
+        out_of_range_solo = render_bus(
+            audio[:, :1],
+            {"master": 1.0, "channels": {
+                "1": {"volume": 1.0}, "33": {"volume": 1.0, "solo": True}
+            }},
+        )
+        self.assertTrue(np.allclose(out_of_range_solo, expected_single, atol=1e-6))
+
     def test_non_finite_simulated_inputs_become_silence(self):
         audio = np.array([[np.nan, np.inf, -np.inf]], dtype=np.float32)
         output = render_bus(audio, {"master": 1.0, "channels": {
