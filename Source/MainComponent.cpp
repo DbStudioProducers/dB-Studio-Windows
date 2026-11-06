@@ -111,6 +111,18 @@ MainComponent::MainComponent() {
             engine_.setMixInputMuted(selectedMix_, i, muteButtons_[static_cast<size_t>(i)].getToggleState());
         };
         channelGrid_.addAndMakeVisible(mute);
+
+        auto& solo = soloButtons_[static_cast<size_t>(i)];
+        solo.setButtonText("SOLO");
+        solo.setClickingTogglesState(true);
+        solo.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff34302a));
+        solo.setColour(juce::TextButton::buttonOnColourId, juce::Colour(0xffffc247));
+        solo.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
+        solo.setColour(juce::TextButton::textColourOnId, juce::Colour(0xff171717));
+        solo.onClick = [this, i] {
+            engine_.setMixInputSolo(selectedMix_, i, soloButtons_[static_cast<size_t>(i)].getToggleState());
+        };
+        channelGrid_.addAndMakeVisible(solo);
     }
     addAndMakeVisible(channelGrid_);
 
@@ -178,7 +190,9 @@ void MainComponent::resized() {
                                          gridArea.getY() + row * (cellH + 4), cellW, cellH);
         channelLabels_[static_cast<size_t>(i)].setBounds(cell.removeFromTop(20));
         inputMeters_[static_cast<size_t>(i)].setBounds(cell.removeFromTop(8).reduced(5, 0));
-        muteButtons_[static_cast<size_t>(i)].setBounds(cell.removeFromBottom(24).reduced(8, 1));
+        auto buttonRow = cell.removeFromBottom(24);
+        muteButtons_[static_cast<size_t>(i)].setBounds(buttonRow.removeFromLeft(buttonRow.getWidth() / 2).reduced(3, 1));
+        soloButtons_[static_cast<size_t>(i)].setBounds(buttonRow.reduced(3, 1));
         panSliders_[static_cast<size_t>(i)].setBounds(cell.removeFromBottom(22).reduced(5, 0));
         gainSliders_[static_cast<size_t>(i)].setBounds(cell.reduced(12, 0));
     }
@@ -200,6 +214,7 @@ void MainComponent::loadSelectedMix() {
         gainSliders_[index].setValue(engine_.mixInputGain(selectedMix_, i), juce::dontSendNotification);
         panSliders_[index].setValue(engine_.mixInputPan(selectedMix_, i), juce::dontSendNotification);
         muteButtons_[index].setToggleState(engine_.mixInputMuted(selectedMix_, i), juce::dontSendNotification);
+        soloButtons_[index].setToggleState(engine_.mixInputSolo(selectedMix_, i), juce::dontSendNotification);
     }
 }
 
