@@ -1,5 +1,9 @@
 name: dB Studio Native Windows Build
 
+concurrency:
+  group: dB-Studio-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   push:
     branches: [main, "feature/**"]
