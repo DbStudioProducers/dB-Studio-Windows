@@ -26,9 +26,10 @@ class CoreTests(unittest.TestCase):
             "3": {"volume": 1.0, "mute": True, "solo": True},
         }}
         out = render_bus(x, mix)
-        self.assertTrue(np.all(out[:, 0] > 0))
-        solo_only = render_bus(x[:, 1:2], {"channels": {"1": {"solo": False}}})
-        self.assertTrue(np.all(solo_only >= 0))
+        self.assertTrue(np.allclose(out, .1, atol=1e-6))
+        # A SOLO in this mix excludes non-solo channels; MUTE still wins.
+        self.assertTrue(np.allclose(out[:, 0], .1, atol=1e-6))
+        self.assertTrue(np.allclose(out[:, 1], .1, atol=1e-6))
 
     def test_packet_roundtrip(self):
         x = np.zeros((16, 2), dtype=np.float32)
