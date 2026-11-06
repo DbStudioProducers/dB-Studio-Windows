@@ -51,7 +51,7 @@ void AudioEngine::audioDeviceIOCallbackWithContext(const float* const* inputs, i
     // Physical outputs are deliberately silent in this foundation. They are
     // not the AUX destinations; all 16 stereo mixes are rendered below.
     for (int out = 0; out < numOutputs; ++out)
-        if (outputs[out] != nullptr) juce::FloatVectorOperations::clear(outputs[out], samples);
+        if (outputs != nullptr && outputs[out] != nullptr) juce::FloatVectorOperations::clear(outputs[out], samples);
 
     std::array<float, kInputChannels> peaks{};
     std::array<float, kMixes> mixPeaks{};
@@ -66,7 +66,7 @@ void AudioEngine::audioDeviceIOCallbackWithContext(const float* const* inputs, i
 
     const int availableInputs = std::min(numInputs, kInputChannels);
     for (int channel = 0; channel < availableInputs; ++channel) {
-        if (inputs[channel] == nullptr) continue;
+        if (inputs == nullptr || inputs[channel] == nullptr) continue;
         float peak = 0.0f;
         for (int sample = 0; sample < samples; ++sample) {
             const float value = inputs[channel][sample];
@@ -85,7 +85,7 @@ void AudioEngine::audioDeviceIOCallbackWithContext(const float* const* inputs, i
         const auto m = static_cast<size_t>(mix);
         for (int channel = 0; channel < availableInputs; ++channel) {
             const auto ch = static_cast<size_t>(channel);
-            const bool active = inputs[channel] != nullptr && !inputMutes_[m][ch].load();
+            const bool active = inputs != nullptr && inputs[channel] != nullptr && !inputMutes_[m][ch].load();
             enabled[m][ch] = active;
             if (!active) continue;
             const float gain = inputGains_[m][ch].load();
