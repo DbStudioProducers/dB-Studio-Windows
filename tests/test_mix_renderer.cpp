@@ -19,6 +19,12 @@ bool near(float actual, float expected, float tolerance = 0.0001f) {
 
 int main() {
     using namespace DbStudioMix;
+    // SOLO is scoped to a mix; MUTE always wins over SOLO.
+    CHECK(isInputAudible(false, false, false));
+    CHECK(!isInputAudible(true, true, false));
+    CHECK(isInputAudible(false, true, true));
+    CHECK(!isInputAudible(false, false, true));
+    CHECK(!isInputAudible(true, false, true));
     constexpr int frames = 4;
     std::array<std::array<float, frames>, kInputs> inputData{};
     std::array<const float*, kInputs> inputs{};
