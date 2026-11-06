@@ -1,4 +1,5 @@
 #include "MainComponent.h"
+#include <memory>
 
 namespace {
 const juce::Colour background{0xff101215};
