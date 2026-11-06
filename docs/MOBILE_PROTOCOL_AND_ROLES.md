@@ -98,3 +98,33 @@ A client-provided role, user ID, or AUX ID is never trusted as proof of authoriz
 - Network loss/reconnect does not change saved mix values or accidentally reopen Talkback.
 - Audio callback remains bounded, non-blocking, and free of network operations.
 - Signal/battery telemetry is shown only when supplied by the device.
+
+
+## 8. Mobile audio output routing (P2 and USB-C)
+
+Initial mobile release supports one active wired output route at a time. The app must not require the user to choose P2 or USB-C manually when Android exposes the route to the system.
+
+### Route selection policy
+
+- Use Android's active audio output routing as the source of truth. Do not infer connector type from the phone model or assume every handset has a 3.5 mm jack.
+- A wired analog headset/headphone route (typically reported as `TYPE_WIRED_HEADSET` or `TYPE_WIRED_HEADPHONES`) is eligible for the P2 route.
+- A USB audio route (typically `TYPE_USB_HEADSET` or `TYPE_USB_DEVICE`) is eligible for USB-C audio, including compatible USB-C-to-3.5 mm DAC adapters.
+- When Android changes the active output, the receiver follows the system-selected route automatically. Do not force a communication-device route for normal music playback; that API is intended for communication use cases and may change routing behavior.
+- Observe device changes using `AudioDeviceCallback` on supported Android versions and query the current output devices through `AudioManager`. Keep a compatibility fallback for older supported Android versions.
+- If both route types are attached, use the route Android reports as active/default for media playback. The app must not promise a universal P2-over-USB priority because routing policy and device behavior vary by manufacturer and Android version.
+- If no compatible wired route is available, show a clear “saída cabeada não disponível” state; do not silently claim that audio is being delivered.
+- On unplug/replug, follow the newly active route and recover playback without resetting the musician's AUX mix.
+
+### Acceptance criteria
+
+1. P2 headset insertion is reflected as the active route when Android selects it.
+2. USB-C DAC/headset insertion is reflected as the active route when Android selects it.
+3. Unplugging the active route updates status and does not crash or stop the receiver permanently.
+4. Switching between P2 and USB-C preserves stream identity, assigned AUX and mix state.
+5. Only one output route is opened in the initial release.
+6. UI identifies the active route as “P2”, “USB-C” or “sem saída cabeada”, based on actual Android device/routing information.
+7. Tests cover device-added/device-removed events, unknown device types, duplicate notifications and route changes during playback.
+
+### Future dual-output mode
+
+Keep route detection separate from the audio rendering/stream decoder so a later version can fan out the same decoded stereo stream to two output sinks. Simultaneous P2 + USB-C is conditional on Android's audio APIs, the phone's hardware/driver and the USB adapter; it must be validated per device. It is not part of the initial release.
