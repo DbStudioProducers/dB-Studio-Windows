@@ -44,6 +44,7 @@ class NativeArchitectureChecks(unittest.TestCase):
         workflow = (ROOT / '.github' / 'workflows' / 'windows-build.yml').read_text(encoding='utf-8')
         self.assertIn('dBStudioQueueTests', workflow)
         self.assertIn('needs: python-virtual-lab', workflow)
+        self.assertIn('cancel-in-progress: true', workflow)
         ordered_steps = [
             'Verify native architecture before compilation',
             'Configure JUCE native application and core tests',
