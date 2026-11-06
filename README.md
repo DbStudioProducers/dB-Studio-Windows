@@ -7,7 +7,7 @@ dB Studio is being developed as a desktop Wi-Fi audio transmitter and personal i
 - A digital mixer/audio interface supplies up to 32 inputs through a supported USB audio driver or a separately implemented Ethernet audio protocol.
 - The server creates 16 independent stereo AUX mixes.
 - Each AUX is assigned to one individual musician/device and will be transmitted over dedicated Wi-Fi to that receiver only. Shared-mix delivery is out of scope.
-- The initial mobile output is wired USB-C or compatible wired audio.
+- The initial mobile output supports one active wired route at a time: P2 (3.5 mm) or USB-C audio, selected from Android's reported routing. Simultaneous dual output is deferred.
 - The desktop remains the central administration and mixing server. An authenticated master device may later receive delegated control permissions.
 - One device receives one exclusive AUX. With 16 AUX buses, the initial design supports up to 16 simultaneously assigned devices.
 
@@ -59,7 +59,7 @@ The registry is a tested core component, not yet connected to receiver discovery
 
 This branch is an engineering foundation, not a finished Wi-Fi IEM system. **Network audio streaming and mobile receiver clients are not implemented.** A future network sender must be the sole queue consumer, acquire/release each block exactly once and perform all network I/O outside the real-time callback. Packet sequencing, timestamps, receiver jitter buffering, loss/reorder handling, reconnect, authentication and encryption remain to be implemented and tested.
 
-Bluetooth headphone support is deferred. Battery and Wi-Fi signal can only be shown when a mobile OS or receiver app exposes reliable telemetry. Physical outputs are currently cleared and are not AUX destinations; the internal buses are prepared for future Wi-Fi distribution.
+Bluetooth headphone support is deferred. Android P2/USB-C automatic output routing is specified in `docs/MOBILE_PROTOCOL_AND_ROLES.md`; it cannot be marked implemented until the Android receiver application exists and is tested on supported devices. Battery and Wi-Fi signal can only be shown when a mobile OS or receiver app exposes reliable telemetry. Physical outputs are currently cleared and are not AUX destinations; the internal buses are prepared for future Wi-Fi distribution.
 
 ## Compatibility
 
