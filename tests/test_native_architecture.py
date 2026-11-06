@@ -41,6 +41,10 @@ class NativeArchitectureChecks(unittest.TestCase):
         self.assertIn('networkQueue_.tryPush(networkChannels.data(), samples)', self.engine_cpp)
         self.assertIn('networkQueue_.tryAcquire(view)', self.engine_cpp)
         self.assertIn('SpscAudioQueue', self.cmake)
+        workflow = (ROOT / '.github' / 'workflows' / 'windows-build.yml').read_text(encoding='utf-8')
+        self.assertIn('dBStudioQueueTests', workflow)
+        queue = (ROOT / 'Source' / 'SpscAudioBlockQueue.h').read_text(encoding='utf-8')
+        self.assertNotIn('\\\\n        const auto write', queue)
 
     def test_product_requirements_are_documented_not_misrepresented_as_complete(self):
         spec = (ROOT / 'docs' / 'DEVICE_HISTORY_AND_DBS_FORMAT.md').read_text(encoding='utf-8')
