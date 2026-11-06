@@ -13,6 +13,10 @@ using Gains = std::array<std::array<float, kInputs>, kMixes>;
 using Enabled = std::array<std::array<bool, kInputs>, kMixes>;
 using Peaks = std::array<float, kMixes>;
 
+inline bool isInputAudible(bool muted, bool solo, bool anySolo) noexcept {
+    return !muted && (!anySolo || solo);
+}
+
 // Pure, allocation-free renderer shared by the real-time engine and tests.
 // Input pointers may be null; invalid samples are treated as silence.
 inline void render(const float* const* inputs, int availableInputs, int frames,
