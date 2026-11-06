@@ -32,6 +32,8 @@ def encode_pcm(magic, stream_id, sample_rate, sequence, audio):
         raise ValueError("Audio frame count is outside the supported range")
     if magic == b"DBO1" and a.shape[1] != 2:
         raise ValueError("Output streams must contain exactly two channels")
+    if not np.isfinite(a).all():
+        raise ValueError("Audio payload must contain only finite samples")
 
     flags = a.shape[1] if magic == b"DBS1" else 0
     header = _HEADER.pack(
@@ -73,4 +75,6 @@ def decode_pcm(packet, expected_magic):
     if len(payload) != expected_size:
         raise ValueError("Invalid PCM payload size")
     audio = np.frombuffer(payload, dtype="<f4").reshape(frames, channels).copy()
+    if not np.isfinite(audio).all():
+        raise ValueError("PCM payload contains non-finite samples")
     return stream_id, rate, seq, audio
