@@ -72,6 +72,15 @@ int main() {
     CHECK(restored.loadFromFile(path) == AuxAssignmentRegistry::Result::invalidData);
     CHECK(restored.assignedCount() == 16);
     CHECK(restored.findByDevice("device-new", found));
+    const std::string oversizedPath = "dbstudio_aux_registry_oversized_test.dbsaux";
+    { std::ofstream oversized(std::filesystem::u8path(oversizedPath), std::ios::binary | std::ios::trunc);
+      CHECK(oversized.good());
+      oversized << std::string(AuxAssignmentRegistry::kMaxRegistryFileBytes + 1, 'x');
+      oversized.close();
+      CHECK(oversized.good()); }
+    CHECK(restored.loadFromFile(oversizedPath) == AuxAssignmentRegistry::Result::invalidData);
+    CHECK(restored.assignedCount() == 16);
+    std::filesystem::remove(std::filesystem::u8path(oversizedPath));
     std::filesystem::remove(std::filesystem::u8path(path));
     return 0;
 }

@@ -247,7 +247,9 @@ void MainComponent::promptAssignDevice() {
             const auto message = ok ? "AUX exclusivo atribuído." :
                 assignment == AuxAssignmentRegistry::Result::deviceAlreadyAssigned ? "Dispositivo já possui um AUX." :
                 assignment == AuxAssignmentRegistry::Result::mixAlreadyAssigned ? "AUX já ocupado." :
-                assignment == AuxAssignmentRegistry::Result::invalidDeviceId ? "ID inválido." : "AUX inválido.";
+                assignment == AuxAssignmentRegistry::Result::invalidDeviceId ? "ID inválido." :
+                assignment == AuxAssignmentRegistry::Result::invalidDisplayName ? "Nome inválido: informe até 96 bytes, sem caracteres de controle." :
+                "AUX inválido.";
             juce::AlertWindow::showMessageBoxAsync(
                 ok ? juce::MessageBoxIconType::InfoIcon : juce::MessageBoxIconType::WarningIcon,
                 "dB Studio", saved ? message : "AUX atribuído nesta sessão, mas falhou ao salvar no disco.");
@@ -272,7 +274,9 @@ void MainComponent::promptRenameDevice() {
             const bool saved = !ok || persistAssignments();
             juce::AlertWindow::showMessageBoxAsync(
                 ok ? juce::MessageBoxIconType::InfoIcon : juce::MessageBoxIconType::WarningIcon,
-                "dB Studio", !ok ? "Dispositivo não encontrado." : saved ? "Nome atualizado." : "Nome alterado nesta sessão, mas falhou ao salvar no disco.");
+                "dB Studio", renameResult == AuxAssignmentRegistry::Result::invalidDeviceId ? "ID inválido." :
+                renameResult == AuxAssignmentRegistry::Result::invalidDisplayName ? "Nome inválido: informe até 96 bytes, sem caracteres de controle." :
+                !ok ? "Dispositivo não encontrado." : saved ? "Nome atualizado." : "Nome alterado nesta sessão, mas falhou ao salvar no disco.");
             refreshDeviceSummary();
         }), true);
 }
