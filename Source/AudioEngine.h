@@ -31,9 +31,11 @@ public:
     void setMixInputGain(int mix, int input, float gain) noexcept;
     void setMixInputPan(int mix, int input, float pan) noexcept;
     void setMixInputMuted(int mix, int input, bool muted) noexcept;
+    void setMixInputSolo(int mix, int input, bool solo) noexcept;
     float mixInputGain(int mix, int input) const noexcept;
     float mixInputPan(int mix, int input) const noexcept;
     bool mixInputMuted(int mix, int input) const noexcept;
+    bool mixInputSolo(int mix, int input) const noexcept;
     double sampleRate() const noexcept { return sampleRate_.load(); }
     int blockSize() const noexcept { return blockSize_.load(); }
     bool tryAcquireNetworkBlock(const float*& samples, int& frames, unsigned long long& sequence) noexcept;
@@ -49,6 +51,7 @@ private:
     std::array<std::array<std::atomic<float>, kInputChannels>, kMixes> inputGains_{};
     std::array<std::array<std::atomic<float>, kInputChannels>, kMixes> inputPans_{};
     std::array<std::array<std::atomic<bool>, kInputChannels>, kMixes> inputMutes_{};
+    std::array<std::array<std::atomic<bool>, kInputChannels>, kMixes> inputSolos_{};
 
     // Preallocated internal AUX buses. Each mix owns L/R buffers independent
     // of the computer's physical output count. The network sender will consume
