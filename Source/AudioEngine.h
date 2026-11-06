@@ -2,7 +2,8 @@
 #include <juce_audio_utils/juce_audio_utils.h>
 #include <array>
 #include <atomic>
-#include "MixRenderer.h"\n#include "SpscAudioBlockQueue.h"
+#include "MixRenderer.h"
+#include "SpscAudioBlockQueue.h"
 
 class AudioEngine final : public juce::AudioIODeviceCallback {
 public:
