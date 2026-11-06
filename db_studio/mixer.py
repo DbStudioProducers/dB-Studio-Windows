@@ -16,12 +16,14 @@ def render_bus(indata, mix):
 
     output = np.zeros((audio.shape[0], 2), dtype=np.float32)
     settings = mix.get("channels", {})
-    soloed = any(bool(config.get("solo", False)) for config in settings.values())
+    valid_controls = [
+        (int(channel) - 1, config)
+        for channel, config in settings.items()
+        if 1 <= int(channel) <= audio.shape[1]
+    ]
+    soloed = any(bool(config.get("solo", False)) for _, config in valid_controls)
 
-    for channel, config in settings.items():
-        index = int(channel) - 1
-        if index < 0 or index >= audio.shape[1]:
-            continue
+    for index, config in valid_controls:
         if config.get("mute", False) or (soloed and not config.get("solo", False)):
             continue
 
