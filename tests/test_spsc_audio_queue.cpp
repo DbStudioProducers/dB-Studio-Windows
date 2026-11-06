@@ -37,6 +37,31 @@ int main() {
     const float* missing[] = {left.data(), nullptr};
     CHECK(!queue.tryPush(missing, 2));
 
+    // Exercise the exact production dimensions: 32 input-derived stereo buses,
+    // 8192-frame maximum block and three preallocated slots. Keep the large
+    // fixtures off the Windows default thread stack.
+    using ProductQueue = DbStudioAudio::SpscAudioBlockQueue<32, 8192, 3>;
+    static ProductQueue productQueue;
+    static std::array<std::array<float, 8192>, 32> productSource{};
+    std::array<const float*, 32> productChannels{};
+    for (std::size_t channel = 0; channel < productSource.size(); ++channel) {
+        productChannels[channel] = productSource[channel].data();
+        for (std::size_t frame = 0; frame < productSource[channel].size(); ++frame)
+            productSource[channel][frame] = static_cast<float>(channel * 10000 + frame);
+    }
+    CHECK(productQueue.tryPush(productChannels.data(), 8192));
+    ProductQueue::BlockView productView{};
+    CHECK(productQueue.tryAcquire(productView));
+    CHECK(productView.frames == 8192 && productView.sequence == 0);
+    for (std::size_t channel = 0; channel < productSource.size(); ++channel) {
+        const auto offset = channel * 8192;
+        CHECK(productView.samples[offset] == static_cast<float>(channel * 10000));
+        CHECK(productView.samples[offset + 4095] == static_cast<float>(channel * 10000 + 4095));
+        CHECK(productView.samples[offset + 8191] == static_cast<float>(channel * 10000 + 8191));
+    }
+    productQueue.release();
+    CHECK(!productQueue.tryAcquire(productView));
+
     // Stress the actual single-producer/single-consumer ownership contract.
     Queue concurrentQueue;
     constexpr std::uint64_t iterations = 30000;
