@@ -98,7 +98,7 @@ class CoreTests(unittest.TestCase):
             _HEADER.pack(b"DBO1", 1, 0, 1, 48000, 0, 4, 1) + valid[_HEADER.size:],
             _HEADER.pack(b"DBO1", 1, 0, 1, 1000, 0, 4, 0) + valid[_HEADER.size:],
             _HEADER.pack(b"DBO1", 1, 0, 1, 48000, 0, 0, 0),
-            _HEADER.pack(b"DBS1", 1, 33, 1, 48000, 0, 4, 0) + b"\\0" * 16,
+            _HEADER.pack(b"DBS1", 1, 33, 1, 48000, 0, 4, 0) + b"x" * 16,
             _HEADER.pack(b"DBO1", 1, 0, 1, 48000, 0, 4, 0)
                 + np.array([np.inf] * 8, dtype="<f4").tobytes(),
         ]
