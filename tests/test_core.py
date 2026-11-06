@@ -24,7 +24,7 @@ class CoreTests(unittest.TestCase):
             "1": {"volume": 1.0},
             "2": {"volume": 1.0, "solo": True},
             "3": {"volume": 1.0, "mute": True, "solo": True},
-        }}
+        }, "master": 1.0}
         out = render_bus(x, mix)
         self.assertTrue(np.allclose(out, .1, atol=1e-6))
         # A SOLO in this mix excludes non-solo channels; MUTE still wins.
