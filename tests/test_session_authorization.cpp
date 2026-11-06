@@ -10,13 +10,16 @@ int main() {
     const Session anonymous{false, "musician-01", Role::Musician, 3};
     const Session noIdentity{true, "", Role::Master, -1};
     const Session noAux{true, "musician-02", Role::Musician, -1};
+    const Session invalidRole{true, "invalid-role", static_cast<Role>(99), -1};
 
     CHECK(authorize(anonymous, {Action::ReadOwnMix, 3}) == Decision::unauthenticated);
     CHECK(authorize(noIdentity, {Action::ViewDevices, -1}) == Decision::invalidSession);
+    CHECK(authorize(invalidRole, {Action::ViewDevices, -1}) == Decision::forbidden);
     CHECK(authorize(musician, {Action::ReadOwnMix, 3}) == Decision::allow);
     CHECK(authorize(musician, {Action::WriteOwnMix, 3}) == Decision::allow);
     CHECK(authorize(musician, {Action::ReadOwnMix, 2}) == Decision::wrongAux);
     CHECK(authorize(musician, {Action::WriteOwnMix, 4}) == Decision::wrongAux);
+    CHECK(authorize(musician, {Action::ReadOwnMix, 16}) == Decision::invalidRequest);
     CHECK(authorize(noAux, {Action::ReadOwnMix, 0}) == Decision::invalidSession);
 
     CHECK(authorize(musician, {Action::RenameUser, -1}) == Decision::forbidden);
@@ -29,8 +32,11 @@ int main() {
     CHECK(authorize(master, {Action::WriteOwnMix, 0}) == Decision::allow);
     CHECK(authorize(master, {Action::RenameUser, -1}) == Decision::allow);
     CHECK(authorize(master, {Action::AssignAux, 15}) == Decision::allow);
+    CHECK(authorize(master, {Action::AssignAux, -1}) == Decision::invalidRequest);
     CHECK(authorize(master, {Action::ViewDevices, -1}) == Decision::allow);
     CHECK(authorize(master, {Action::SelectTalkbackDestinations, 7}) == Decision::allow);
     CHECK(authorize(master, {Action::TalkbackPtt, 7}) == Decision::allow);
+    CHECK(authorize(master, {Action::TalkbackPtt, 16}) == Decision::invalidRequest);
+    CHECK(authorize(master, {static_cast<Action>(99), -1}) == Decision::invalidRequest);
     return 0;
 }
