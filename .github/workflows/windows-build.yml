@@ -9,6 +9,7 @@ on:
 
 jobs:
   native-build:
+    needs: python-virtual-lab
     runs-on: windows-2022
     timeout-minutes: 50
     steps:
@@ -40,6 +41,7 @@ jobs:
 
   python-virtual-lab:
     runs-on: windows-2022
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v4
