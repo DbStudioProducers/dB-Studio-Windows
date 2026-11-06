@@ -5,9 +5,25 @@ import numpy as np
 from db_studio.mixer import render_all, render_bus
 from db_studio.protocol import _HEADER, decode_pcm, encode_pcm
 from db_studio.simulator import VirtualConsole
+from run_virtual_lab import MAX_UDP_STEREO_FRAMES, validate_args
 
 
 class CoreTests(unittest.TestCase):
+    def test_virtual_lab_validates_udp_packet_bounds(self):
+        validate_args(1.5, 48000, 128)
+        validate_args(0.05, 8000, MAX_UDP_STEREO_FRAMES)
+        for args in [
+            (0.0, 48000, 128),
+            (float("nan"), 48000, 128),
+            (1.0, 7999, 128),
+            (1.0, 384001, 128),
+            (1.0, 48000, 0),
+            (1.0, 48000, MAX_UDP_STEREO_FRAMES + 1),
+        ]:
+            with self.subTest(args=args):
+                with self.assertRaises(ValueError):
+                    validate_args(*args)
+
     def test_32_channels(self):
         self.assertEqual(VirtualConsole().read(128).shape, (128, 32))
 
