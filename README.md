@@ -49,7 +49,7 @@ The verification sequence is enforced in GitHub Actions: the architecture, Pytho
 - Native JUCE desktop window and audio-device selector.
 - Device name, active input/output channel counts, sample rate and buffer diagnostics.
 - Float32 audio callback and 32 input peak meters.
-- 16 independent mix states, each with 32 channel gain/pan/mute controls.
+- 16 independent mix states, each with 32 channel gain/pan/MUTE/SOLO controls.
 - All 16 stereo AUX buses rendered into preallocated internal buffers, independent of physical output availability.
 - Bounded three-slot single-producer/single-consumer handoff queue for future network delivery. The audio callback does not wait; when full, the newest block is dropped and counted.
 - Thread-safe native AUX registry: stable device identity, unique device-to-AUX assignment, rename, lookup, unassignment and versioned local persistence.
@@ -71,7 +71,7 @@ A successful CI build validates compilation, not end-to-end Wi-Fi latency, packe
 ## Future milestones (not yet implemented)
 
 1. Expand automated coverage for gain, pan, mute, metering, AUX isolation and queue ownership.
-2. Define and test a versioned audio packet format, stream IDs, sequence numbers and timestamps.
+2. Promote the virtual-lab PCM packet draft into a production wire protocol with stream IDs, timestamps, sequence numbers and explicit compatibility rules.
 3. Implement the dedicated Wi-Fi sender and mobile receiver, including jitter buffering, loss/reorder handling and reconnect.
 4. Connect receiver discovery/authentication to exclusive device/AUX assignment and delegated master permissions.
 5. Add persistent connection history with stable identity, session timestamps, duration and crash recovery.
