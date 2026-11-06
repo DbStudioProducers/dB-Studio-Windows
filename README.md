@@ -68,6 +68,10 @@ The initial native target is Windows 10/11 x64. Windows 8.1 compatibility is not
 
 A successful CI build validates compilation, not end-to-end Wi-Fi latency, packet loss, mobile playback or physical hardware.
 
+## Master implementation plan
+
+The staged implementation sequence, acceptance criteria, security gates and release requirements are maintained in [docs/IMPLEMENTATION_ROADMAP.md](docs/IMPLEMENTATION_ROADMAP.md). A milestone is not complete until its code, tests and required hardware validation exist.
+
 ## Future milestones (not yet implemented)
 
 1. Add remaining engine-level regression tests for device changes, meter timing, control-state persistence and real-time callback behavior.

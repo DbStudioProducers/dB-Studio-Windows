@@ -18,8 +18,11 @@
 class AuxAssignmentRegistry final {
 public:
     static constexpr std::size_t kMixCount = 16;
-    enum class Result { success, invalidDeviceId, invalidMix, deviceAlreadyAssigned,
+    enum class Result { success, invalidDeviceId, invalidDisplayName, invalidMix, deviceAlreadyAssigned,
                         mixAlreadyAssigned, deviceNotFound, persistenceError, invalidData };
+    static constexpr std::size_t kMaxDeviceIdBytes = 128;
+    static constexpr std::size_t kMaxDisplayNameBytes = 96;
+    static constexpr std::uintmax_t kMaxRegistryFileBytes = 64 * 1024;
     struct Assignment {
         std::string deviceId;
         std::string displayName;
@@ -27,7 +30,8 @@ public:
     };
 
     Result assign(const std::string& deviceId, const std::string& displayName, std::size_t mixIndex) {
-        if (deviceId.empty()) return Result::invalidDeviceId;
+        if (deviceId.empty() || deviceId.size() > kMaxDeviceIdBytes) return Result::invalidDeviceId;
+        if (!isValidDisplayName(displayName)) return Result::invalidDisplayName;
         if (mixIndex >= kMixCount) return Result::invalidMix;
         std::lock_guard<std::mutex> lock(mutex_);
         for (const auto& item : assignments_)
@@ -38,7 +42,8 @@ public:
     }
 
     Result renameDevice(const std::string& deviceId, const std::string& displayName) {
-        if (deviceId.empty()) return Result::invalidDeviceId;
+        if (deviceId.empty() || deviceId.size() > kMaxDeviceIdBytes) return Result::invalidDeviceId;
+        if (!isValidDisplayName(displayName)) return Result::invalidDisplayName;
         std::lock_guard<std::mutex> lock(mutex_);
         for (auto& item : assignments_) if (item.deviceId == deviceId) {
             item.displayName = displayName;
@@ -89,6 +94,11 @@ public:
             std::lock_guard<std::mutex> lock(mutex_);
             snapshot = assignments_;
         }
+        for (const auto& item : snapshot) {
+            if (item.deviceId.empty()) continue;
+            if (item.deviceId.size() > kMaxDeviceIdBytes || !isValidDisplayName(item.displayName))
+                return Result::invalidData;
+        }
         // Interpret incoming paths as UTF-8 on every platform. On Windows,
         // filesystem::path stores UTF-16 so non-ASCII account names remain valid.
         const auto destination = std::filesystem::u8path(path);
@@ -135,6 +145,11 @@ public:
 
     // Loads transactionally: invalid files never partially modify the active registry.
     Result loadFromFile(const std::string& path) {
+        if (path.empty()) return Result::persistenceError;
+        std::error_code sizeError;
+        const auto fileSize = std::filesystem::file_size(std::filesystem::u8path(path), sizeError);
+        if (sizeError) return Result::persistenceError;
+        if (fileSize > kMaxRegistryFileBytes) return Result::invalidData;
         std::ifstream in(std::filesystem::u8path(path), std::ios::binary);
         if (!in) return Result::persistenceError;
         std::string line;
@@ -155,7 +170,8 @@ public:
             if (index >= kMixCount || !loaded[index].deviceId.empty()) return Result::invalidData;
             std::string id, name;
             if (!decodeHex(line.substr(first + 1, second - first - 1), id) ||
-                !decodeHex(line.substr(second + 1), name) || id.empty()) return Result::invalidData;
+                !decodeHex(line.substr(second + 1), name) || id.empty() ||
+                id.size() > kMaxDeviceIdBytes || !isValidDisplayName(name)) return Result::invalidData;
             for (const auto& existing : loaded)
                 if (existing.deviceId == id) return Result::invalidData;
             loaded[index] = Assignment{std::move(id), std::move(name), index};
@@ -169,6 +185,16 @@ public:
     }
 
 private:
+    static bool isValidDisplayName(const std::string& value) noexcept {
+        if (value.empty() || value.size() > kMaxDisplayNameBytes) return false;
+        bool visible = false;
+        for (unsigned char c : value) {
+            if (c < 0x20 || c == 0x7f) return false;
+            if (c != ' ' && c != '\t' && c != '\r' && c != '\n') visible = true;
+        }
+        return visible;
+    }
+
     static std::string encodeHex(const std::string& value) {
         static const char digits[] = "0123456789ABCDEF";
         std::string out; out.reserve(value.size() * 2);

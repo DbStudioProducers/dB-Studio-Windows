@@ -18,12 +18,22 @@ int main() {
     CHECK(registry.assignedCount() == 0);
     CHECK(!registry.findByDevice("", found));
     CHECK(registry.assign("", "Sem ID", 0) == AuxAssignmentRegistry::Result::invalidDeviceId);
+    CHECK(registry.assign(std::string(AuxAssignmentRegistry::kMaxDeviceIdBytes + 1, 'x'), "Nome", 0)
+          == AuxAssignmentRegistry::Result::invalidDeviceId);
+    CHECK(registry.assign("device-empty-name", "", 0) == AuxAssignmentRegistry::Result::invalidDisplayName);
+    CHECK(registry.assign("device-space-name", "   ", 0) == AuxAssignmentRegistry::Result::invalidDisplayName);
+    CHECK(registry.assign("device-control-name", std::string("Nome\nInválido"), 0)
+          == AuxAssignmentRegistry::Result::invalidDisplayName);
+    CHECK(registry.assign("device-long-name", std::string(AuxAssignmentRegistry::kMaxDisplayNameBytes + 1, 'x'), 0)
+          == AuxAssignmentRegistry::Result::invalidDisplayName);
     CHECK(registry.assign("device-a", "Guitarra", 16) == AuxAssignmentRegistry::Result::invalidMix);
     CHECK(registry.assign("device-a", "Guitarra", 0) == AuxAssignmentRegistry::Result::success);
     CHECK(registry.assign("device-a", "Outro nome", 1) == AuxAssignmentRegistry::Result::deviceAlreadyAssigned);
     CHECK(registry.assign("device-b", "Vocal", 0) == AuxAssignmentRegistry::Result::mixAlreadyAssigned);
     CHECK(registry.assignedCount() == 1);
 
+    CHECK(registry.renameDevice("device-a", "") == AuxAssignmentRegistry::Result::invalidDisplayName);
+    CHECK(registry.renameDevice("device-a", "   ") == AuxAssignmentRegistry::Result::invalidDisplayName);
     CHECK(registry.renameDevice("device-a", "Guitarra Lead") == AuxAssignmentRegistry::Result::success);
     CHECK(registry.findByDevice("device-a", found));
     CHECK(found.displayName == "Guitarra Lead");
