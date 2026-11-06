@@ -45,6 +45,7 @@ private:
     std::array<juce::Slider, AudioEngine::kInputChannels> gainSliders_;
     std::array<juce::Slider, AudioEngine::kInputChannels> panSliders_;
     std::array<juce::TextButton, AudioEngine::kInputChannels> muteButtons_;
+    std::array<juce::TextButton, AudioEngine::kInputChannels> soloButtons_;
     int selectedMix_ = 0;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MainComponent)
