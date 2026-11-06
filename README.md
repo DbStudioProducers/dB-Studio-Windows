@@ -70,7 +70,7 @@ A successful CI build validates compilation, not end-to-end Wi-Fi latency, packe
 
 ## Future milestones (not yet implemented)
 
-1. Expand automated coverage for gain, pan, mute, metering, AUX isolation and queue ownership.
+1. Add remaining engine-level regression tests for device changes, meter timing, control-state persistence and real-time callback behavior.
 2. Promote the virtual-lab PCM packet draft into a production wire protocol with stream IDs, timestamps, sequence numbers and explicit compatibility rules.
 3. Implement the dedicated Wi-Fi sender and mobile receiver, including jitter buffering, loss/reorder handling and reconnect.
 4. Connect receiver discovery/authentication to exclusive device/AUX assignment and delegated master permissions.
