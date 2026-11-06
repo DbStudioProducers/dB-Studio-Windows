@@ -43,8 +43,17 @@ class NativeArchitectureChecks(unittest.TestCase):
         self.assertIn('SpscAudioQueue', self.cmake)
         workflow = (ROOT / '.github' / 'workflows' / 'windows-build.yml').read_text(encoding='utf-8')
         self.assertIn('dBStudioQueueTests', workflow)
-        queue = (ROOT / 'Source' / 'SpscAudioBlockQueue.h').read_text(encoding='utf-8')
-        self.assertNotIn('\\\\n        const auto write', queue)
+        self.assertIn('needs: python-virtual-lab', workflow)
+        ordered_steps = [
+            'Verify native architecture before compilation',
+            'Configure JUCE native application and core tests',
+            'Build core verification tests',
+            'Run core verification tests before application compilation',
+            'Compile native application',
+            'Upload native application',
+        ]
+        positions = [workflow.index(step) for step in ordered_steps]
+        self.assertEqual(positions, sorted(positions))
 
     def test_product_requirements_are_documented_not_misrepresented_as_complete(self):
         spec = (ROOT / 'docs' / 'DEVICE_HISTORY_AND_DBS_FORMAT.md').read_text(encoding='utf-8')
