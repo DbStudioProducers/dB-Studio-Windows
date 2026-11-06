@@ -36,7 +36,7 @@ python -m unittest discover -s tests -v
 python run_virtual_lab.py --seconds 1.5 --rate 48000 --blocksize 128
 
 cmake -S . -B build -A x64 -DBUILD_TESTING=ON
-cmake --build build --config Release --target dBStudioCoreTests dBStudioMixTests
+cmake --build build --config Release --target dBStudioCoreTests dBStudioMixTests dBStudioQueueTests
 ctest --test-dir build -C Release --output-on-failure
 cmake --build build --config Release --target dBStudio --parallel 2
 ```
