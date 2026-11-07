@@ -10,6 +10,7 @@ class NativeArchitectureChecks(unittest.TestCase):
         cls.engine_h = (ROOT / 'Source' / 'AudioEngine.h').read_text(encoding='utf-8')
         cls.engine_cpp = (ROOT / 'Source' / 'AudioEngine.cpp').read_text(encoding='utf-8')
         cls.renderer = (ROOT / 'Source' / 'MixRenderer.h').read_text(encoding='utf-8')
+        cls.main_component = (ROOT / 'Source' / 'MainComponent.cpp').read_text(encoding='utf-8')
 
     def test_juce_8_is_pinned(self):
         self.assertIn('GIT_TAG 8.0.6', self.cmake)
@@ -43,10 +44,16 @@ class NativeArchitectureChecks(unittest.TestCase):
         self.assertIn('SpscAudioQueue', self.cmake)
         workflow = (ROOT / '.github' / 'workflows' / 'windows-build.yml').read_text(encoding='utf-8')
         self.assertIn('dBStudioQueueTests', workflow)
-        self.assertIn('needs: python-virtual-lab', workflow)
+        self.assertIn('runs-on: windows-2022', workflow)
+        self.assertIn('python -m unittest tests/test_native_architecture.py -v', workflow)
+        self.assertIn('python -m unittest tests/test_core.py -v', workflow)
+        self.assertNotIn('needs:', workflow)
+        self.assertNotIn('python-virtual-lab:', workflow)
         self.assertIn('cancel-in-progress: true', workflow)
         ordered_steps = [
             'Verify native architecture before compilation',
+            'Run virtual-lab unit tests',
+            'Run virtual audio lab',
             'Configure JUCE native application and core tests',
             'Build core verification tests',
             'Run core verification tests before application compilation',
@@ -55,6 +62,10 @@ class NativeArchitectureChecks(unittest.TestCase):
         ]
         positions = [workflow.index(step) for step in ordered_steps]
         self.assertEqual(positions, sorted(positions))
+
+    def test_channel_controls_are_attached_to_a_sized_grid_container(self):
+        self.assertIn('channelGrid_.setBounds(gridBounds);', self.main_component)
+        self.assertIn('channelGrid_.getLocalBounds()', self.main_component)
 
     def test_product_requirements_are_documented_not_misrepresented_as_complete(self):
         spec = (ROOT / 'docs' / 'DEVICE_HISTORY_AND_DBS_FORMAT.md').read_text(encoding='utf-8')

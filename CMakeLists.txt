@@ -8,14 +8,13 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 include(CTest)
 
 if(BUILD_TESTING)
+  find_package(Threads REQUIRED)
+
   add_executable(dBStudioCoreTests tests/test_aux_assignment.cpp)
-  target_include_directories(dBStudioCoreTests PRIVATE Source)
   add_executable(dBStudioMixTests tests/test_mix_renderer.cpp)
   add_executable(dBStudioQueueTests tests/test_spsc_audio_queue.cpp)
   add_executable(dBStudioAuthorizationTests tests/test_session_authorization.cpp)
-  target_include_directories(dBStudioMixTests PRIVATE Source)
-  target_include_directories(dBStudioQueueTests PRIVATE Source)
-  target_include_directories(dBStudioAuthorizationTests PRIVATE Source)
+  target_link_libraries(dBStudioQueueTests PRIVATE Threads::Threads)
 
   add_test(NAME AuxAssignmentRegistry COMMAND dBStudioCoreTests)
   add_test(NAME MixRenderer COMMAND dBStudioMixTests)

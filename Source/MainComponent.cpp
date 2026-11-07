@@ -150,7 +150,6 @@ MainComponent::MainComponent() {
 
 MainComponent::~MainComponent() {
     stopTimer();
-    engine_.shutdown();
 }
 
 void MainComponent::paint(juce::Graphics& g) {
@@ -181,7 +180,9 @@ void MainComponent::resized() {
     outputMeter_.setBounds(controls.removeFromLeft(110).reduced(2, 12));
     deviceSummary_.setBounds(controls);
     area.removeFromTop(12);
-    auto gridArea = area.removeFromTop(590);
+    const auto gridBounds = area.removeFromTop(590);
+    channelGrid_.setBounds(gridBounds);
+    const auto gridArea = channelGrid_.getLocalBounds();
     const int cellW = (gridArea.getWidth() - 24) / 8;
     const int cellH = (gridArea.getHeight() - 18) / 4;
     for (int i = 0; i < AudioEngine::kInputChannels; ++i) {

@@ -1,0 +1,31 @@
+# CMake and JUCE build output
+/build/
+/cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+CTestTestfile.cmake
+Testing/
+JuceLibraryCode/
+
+# Visual Studio and IDE state
+.vs/
+.vscode/
+.idea/
+*.suo
+*.user
+
+# Python environments and caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Local AUX registry and temporary persistence files
+*.dbsaux
+*.dbsaux.tmp
+
+# Operating-system metadata
+.DS_Store
+Thumbs.db

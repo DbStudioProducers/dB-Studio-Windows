@@ -16,6 +16,7 @@ USB and Ethernet are alternative input paths, not automatically summed. Generic 
 ## Repository layout
 
 - `Source/`: native JUCE application, audio engine, renderer and AUX assignment registry.
+- `Source/SessionAuthorization.h`: isolated authorization-policy model exercised by C++ tests; it is not connected to production sessions and does not authenticate users.
 - `tests/`: native C++ tests and Python architecture/regression tests.
 - `db_studio/`: Python virtual-lab modules only (simulated source, mixer and packet codec).
 - `run_virtual_lab.py`: local UDP loopback simulation for 16 independent stereo streams.
@@ -31,9 +32,9 @@ Run from the repository root in PowerShell:
 
 ```powershell
 python -m pip install -r requirements.txt
+python -m py_compile run_virtual_lab.py db_studio/__init__.py db_studio/mixer.py db_studio/protocol.py db_studio/simulator.py tests/test_core.py tests/test_native_architecture.py
 python -m unittest tests/test_native_architecture.py -v
-python -m py_compile run_virtual_lab.py db_studio/mixer.py db_studio/protocol.py db_studio/simulator.py
-python -m unittest discover -s tests -v
+python -m unittest tests/test_core.py -v
 python run_virtual_lab.py --seconds 1.5 --rate 48000 --blocksize 128
 
 cmake -S . -B build -A x64 -DBUILD_TESTING=ON
@@ -42,7 +43,7 @@ ctest --test-dir build -C Release --output-on-failure
 cmake --build build --config Release --target dBStudio --parallel 2
 ```
 
-The verification sequence is enforced in GitHub Actions: the architecture, Python regression and UDP loopback virtual-lab job must pass before the native job starts. The native job then configures CMake, builds all four C++ test executables, runs CTest, and only after those checks pass compiles the application and uploads its artifact. CMake fetches the pinned JUCE 8.0.6 source.
+GitHub Actions runs this sequence in one Windows 2022 job to avoid a second hosted-runner allocation: Python syntax, native architecture checks, Python regression tests and the UDP loopback virtual lab; then CMake configuration, all four C++ test executables, CTest, and only after those checks pass, the Windows application build and artifact upload. The workflow does not use a separate prerequisite job. CMake fetches the pinned JUCE 8.0.6 source.
 
 ## Implemented native foundation
 
