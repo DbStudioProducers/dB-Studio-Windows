@@ -16,12 +16,32 @@ on:
 
 jobs:
   native-build:
-    needs: python-virtual-lab
-    runs-on: windows-2022
+    # One hosted runner performs the full verification pipeline. Keeping
+    # Python and native checks in one job avoids a second runner allocation
+    # and prevents a pre-job failure in a prerequisite job from skipping the
+    # actual Windows verification.
     timeout-minutes: 50
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Prepare Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          architecture: "x64"
+
+      - name: Install virtual-lab dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Check virtual-lab Python syntax
+        run: python -m py_compile run_virtual_lab.py db_studio/mixer.py db_studio/protocol.py db_studio/simulator.py
+
+      - name: Run virtual-lab unit tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Run virtual audio lab
+        run: python run_virtual_lab.py --seconds 1.5 --rate 48000 --blocksize 128
 
       - name: Verify native architecture before compilation
         run: python -m unittest tests/test_native_architecture.py -v
@@ -46,25 +66,3 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-  python-virtual-lab:
-    # Use the same hosted runner image that completed the full pipeline
-    # successfully; this avoids the Ubuntu runner-allocation failure seen in
-    # recent runs (runner_id=0, no steps registered).
-    runs-on: windows-2022
-    timeout-minutes: 15
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Prepare Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.10"
-          architecture: "x64"
-      - name: Install virtual-lab dependencies
-        run: python -m pip install -r requirements.txt
-      - name: Check virtual-lab Python syntax
-        run: python -m py_compile run_virtual_lab.py db_studio/mixer.py db_studio/protocol.py db_studio/simulator.py
-      - name: Run virtual-lab unit tests
-        run: python -m unittest discover -s tests -v
-      - name: Run virtual audio lab
-        run: python run_virtual_lab.py --seconds 1.5 --rate 48000 --blocksize 128
