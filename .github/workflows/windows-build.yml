@@ -47,9 +47,10 @@ jobs:
           retention-days: 30
 
   python-virtual-lab:
-    # Python simulation is platform-neutral. Keep it off the Windows build
-    # runner so Python validation and the native toolchain fail independently.
-    runs-on: ubuntu-24.04
+    # Use the same hosted runner image that completed the full pipeline
+    # successfully; this avoids the Ubuntu runner-allocation failure seen in
+    # recent runs (runner_id=0, no steps registered).
+    runs-on: windows-2022
     timeout-minutes: 15
     steps:
       - name: Checkout
@@ -58,6 +59,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
+          architecture: "x64"
       - name: Install virtual-lab dependencies
         run: python -m pip install -r requirements.txt
       - name: Check virtual-lab Python syntax
