@@ -22,6 +22,9 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 
+# Generated logs
+*.log
+
 # Local AUX registry and temporary persistence files
 *.dbsaux
 *.dbsaux.tmp
