@@ -20,6 +20,7 @@ jobs:
     # Python and native checks in one job avoids a second runner allocation
     # and prevents a pre-job failure in a prerequisite job from skipping the
     # actual Windows verification.
+    runs-on: windows-2022
     timeout-minutes: 50
     steps:
       - name: Checkout
