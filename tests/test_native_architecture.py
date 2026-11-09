@@ -73,6 +73,19 @@ class NativeArchitectureChecks(unittest.TestCase):
         self.assertIn('channelGrid_.setBounds(gridBounds);', self.main_component)
         self.assertIn('channelGrid_.getLocalBounds()', self.main_component)
 
+    def test_audio_packet_codec_is_bounded_and_has_dedicated_ctest(self):
+        codec = (ROOT / 'Source' / 'AudioPacketCodec.h').read_text(encoding='utf-8')
+        self.assertIn('kMaxDatagramBytes = 1200', codec)
+        self.assertIn('kMaxFramesPerPacket = 128', codec)
+        self.assertIn('kHeaderBytes = 48', codec)
+        self.assertIn('encodeAudioPacket', codec)
+        self.assertIn('decodeAudioPacket', codec)
+        self.assertIn('nonFiniteSample', codec)
+        self.assertIn('add_executable(dBStudioPacketTests tests/test_audio_packet_codec.cpp)', self.cmake)
+        self.assertIn('add_test(NAME AudioPacketCodec COMMAND dBStudioPacketTests)', self.cmake)
+        workflow = (ROOT / '.github' / 'workflows' / 'windows-build.yml').read_text(encoding='utf-8')
+        self.assertIn('dBStudioPacketTests', workflow)
+
     def test_product_requirements_are_documented_not_misrepresented_as_complete(self):
         spec = (ROOT / 'docs' / 'DEVICE_HISTORY_AND_DBS_FORMAT.md').read_text(encoding='utf-8')
         self.assertIn('Connection History', spec)

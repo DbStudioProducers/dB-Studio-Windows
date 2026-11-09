@@ -14,12 +14,14 @@ if(BUILD_TESTING)
   add_executable(dBStudioMixTests tests/test_mix_renderer.cpp)
   add_executable(dBStudioQueueTests tests/test_spsc_audio_queue.cpp)
   add_executable(dBStudioAuthorizationTests tests/test_session_authorization.cpp)
+  add_executable(dBStudioPacketTests tests/test_audio_packet_codec.cpp)
   target_link_libraries(dBStudioQueueTests PRIVATE Threads::Threads)
 
   add_test(NAME AuxAssignmentRegistry COMMAND dBStudioCoreTests)
   add_test(NAME MixRenderer COMMAND dBStudioMixTests)
   add_test(NAME SpscAudioQueue COMMAND dBStudioQueueTests)
   add_test(NAME SessionAuthorization COMMAND dBStudioAuthorizationTests)
+  add_test(NAME AudioPacketCodec COMMAND dBStudioPacketTests)
 endif()
 
 include(FetchContent)
@@ -46,6 +48,7 @@ target_sources(dBStudio PRIVATE
   Source/AuxAssignmentRegistry.h
   Source/MixRenderer.h
   Source/SpscAudioBlockQueue.h
+  Source/AudioPacketCodec.h
   Source/MainComponent.cpp
   Source/MainComponent.h
 )

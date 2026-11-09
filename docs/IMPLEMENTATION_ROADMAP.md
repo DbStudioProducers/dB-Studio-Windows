@@ -34,11 +34,11 @@ Aceite: execução completa, todos os testes aprovados e artefato verificável. 
 Aceite: testes determinísticos, callback dentro do orçamento e limite de canais real documentado.
 
 ## Fase 2 — Protocolo e transporte de áudio
-1. Versionar sessão, stream, codec, taxa, canais, timestamp, sequência e capacidades.
-2. Definir MTU e tamanho de pacote sem fragmentação IP.
+1. [Em implementação] Contrato de datagrama v1: cabeçalho de 48 bytes, sessão de 128 bits, stream AUX 0–15, sequência, timestamp em frames, taxa e 128 frames estéreo float32 por pacote.
+2. [Em implementação] Codificação de cabeçalho em big-endian e payload float32 little-endian, limite de 1200 bytes para evitar fragmentação IP comum.
 3. Implementar sender como consumidor único da fila, com acquire/release seguro em todos os caminhos.
 4. Implementar jitter buffer, reordenação, descarte de pacotes atrasados, métricas, heartbeat e reconexão.
-5. Proteger controle e áudio; nunca confiar em IDs, role ou AUX enviados pelo cliente.
+5. Proteger áudio e controle com autenticação criptográfica; nunca confiar em IDs, role ou AUX enviados pelo cliente. O codec de pacote atual não fornece criptografia nem autenticação.
 6. Manter rede e alocação fora do callback.
 Aceite: testes de perda, duplicação, reordenação, jitter, MTU, replay, reconexão e isolamento de 16 streams; latência medida em hardware.
 
