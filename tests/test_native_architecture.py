@@ -12,6 +12,12 @@ class NativeArchitectureChecks(unittest.TestCase):
         cls.renderer = (ROOT / 'Source' / 'MixRenderer.h').read_text(encoding='utf-8')
         cls.main_component = (ROOT / 'Source' / 'MainComponent.cpp').read_text(encoding='utf-8')
 
+    def test_workflow_uses_node24_compatible_action_releases(self):
+        workflow = (ROOT / '.github' / 'workflows' / 'windows-build.yml').read_text(encoding='utf-8')
+        self.assertIn('actions/checkout@v7', workflow)
+        self.assertIn('actions/setup-python@v7', workflow)
+        self.assertIn('actions/upload-artifact@v7', workflow)
+
     def test_juce_8_is_pinned(self):
         self.assertIn('GIT_TAG 8.0.6', self.cmake)
 
