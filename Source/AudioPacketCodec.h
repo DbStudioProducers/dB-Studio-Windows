@@ -27,10 +27,12 @@ inline PacketResult encodeAudioPacket(const PacketMetadata&m,const float*l,const
  written=0;if(!l||!r||!d)return PacketResult::invalidArgument;if(!detail::validMetadata(m))return PacketResult::invalidMetadata;
  if(m.frames==0||m.frames>kMaxFramesPerPacket)return PacketResult::invalidFrameCount;
  const auto required=kHeaderBytes+static_cast<std::size_t>(m.frames)*8;if(required>kMaxDatagramBytes)return PacketResult::invalidFrameCount;if(cap<required)return PacketResult::insufficientCapacity;
+ // Validate the complete source block before touching the destination packet.
+ for(std::size_t i=0;i<m.frames;++i)if(!std::isfinite(l[i])||!std::isfinite(r[i]))return PacketResult::nonFiniteSample;
  d[0]='D';d[1]='B';d[2]='S';d[3]='A';d[4]=kProtocolVersion;d[5]=0;detail::put16be(d+6,static_cast<std::uint16_t>(kHeaderBytes));
  std::memcpy(d+8,m.sessionId.data(),m.sessionId.size());d[24]=m.streamId;d[25]=kCodecFloat32;d[26]=2;d[27]=0;
  detail::put32be(d+28,m.sequence);detail::put64be(d+32,m.timestampFrames);detail::put32be(d+40,m.sampleRate);detail::put16be(d+44,m.frames);detail::put16be(d+46,0);
- for(std::size_t i=0;i<m.frames;++i){if(!std::isfinite(l[i])||!std::isfinite(r[i]))return PacketResult::nonFiniteSample;std::uint32_t lb=0,rb=0;std::memcpy(&lb,l+i,4);std::memcpy(&rb,r+i,4);detail::put32le(d+kHeaderBytes+i*8,lb);detail::put32le(d+kHeaderBytes+i*8+4,rb);}
+ for(std::size_t i=0;i<m.frames;++i){std::uint32_t lb=0,rb=0;std::memcpy(&lb,l+i,4);std::memcpy(&rb,r+i,4);detail::put32le(d+kHeaderBytes+i*8,lb);detail::put32le(d+kHeaderBytes+i*8+4,rb);}
  written=required;return PacketResult::success;
 }
 inline PacketResult decodeAudioPacket(const std::uint8_t*p,std::size_t n,PacketMetadata&m,float*l,float*r,std::size_t cap) noexcept {
@@ -39,7 +41,9 @@ inline PacketResult decodeAudioPacket(const std::uint8_t*p,std::size_t n,PacketM
  PacketMetadata x{};std::memcpy(x.sessionId.data(),p+8,x.sessionId.size());x.streamId=p[24];x.sequence=detail::get32be(p+28);x.timestampFrames=detail::get64be(p+32);x.sampleRate=detail::get32be(p+40);x.frames=detail::get16be(p+44);
  if(!detail::validMetadata(x)||x.frames==0||x.frames>kMaxFramesPerPacket)return PacketResult::invalidMetadata;
  const auto expected=kHeaderBytes+static_cast<std::size_t>(x.frames)*8;if(n!=expected)return PacketResult::invalidPacket;if(cap<x.frames)return PacketResult::insufficientCapacity;
- for(std::size_t i=0;i<x.frames;++i){const auto*q=p+kHeaderBytes+i*8;auto lb=detail::get32le(q),rb=detail::get32le(q+4);std::memcpy(l+i,&lb,4);std::memcpy(r+i,&rb,4);if(!std::isfinite(l[i])||!std::isfinite(r[i]))return PacketResult::nonFiniteSample;}
+ // Reject non-finite payloads before modifying caller-owned output buffers or metadata.
+ for(std::size_t i=0;i<x.frames;++i){const auto*q=p+kHeaderBytes+i*8;std::uint32_t lb=detail::get32le(q),rb=detail::get32le(q+4);float left=0.0f,right=0.0f;std::memcpy(&left,&lb,4);std::memcpy(&right,&rb,4);if(!std::isfinite(left)||!std::isfinite(right))return PacketResult::nonFiniteSample;}
+ for(std::size_t i=0;i<x.frames;++i){const auto*q=p+kHeaderBytes+i*8;const auto lb=detail::get32le(q),rb=detail::get32le(q+4);std::memcpy(l+i,&lb,4);std::memcpy(r+i,&rb,4);}
  m=x;return PacketResult::success;
 }
 }

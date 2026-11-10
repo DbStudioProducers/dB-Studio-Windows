@@ -38,7 +38,7 @@ python -m unittest tests/test_core.py -v
 python run_virtual_lab.py --seconds 1.5 --rate 48000 --blocksize 128
 
 cmake -S . -B build -A x64 -DBUILD_TESTING=ON
-cmake --build build --config Release --target dBStudioCoreTests dBStudioMixTests dBStudioQueueTests dBStudioAuthorizationTests
+cmake --build build --config Release --target dBStudioCoreTests dBStudioMixTests dBStudioQueueTests dBStudioAuthorizationTests dBStudioPacketTests
 ctest --test-dir build -C Release --output-on-failure
 cmake --build build --config Release --target dBStudio --parallel 2
 ```
@@ -59,7 +59,7 @@ The registry is a tested core component, not yet connected to receiver discovery
 
 ## Implementation boundaries
 
-This branch is an engineering foundation, not a finished Wi-Fi IEM system. **Network audio streaming and mobile receiver clients are not implemented.** A future network sender must be the sole queue consumer, acquire/release each block exactly once and perform all network I/O outside the real-time callback. The Python virtual lab has a versioned PCM packet draft with sequence and frame metadata, verifies delivery of every expected loopback UDP packet, and rejects stereo blocks that exceed the IPv4 UDP datagram payload limit. It is not the production network protocol. Production timestamps, transport, receiver jitter buffering, loss/reorder handling, reconnect, authentication and encryption remain to be implemented and tested.
+This branch is an engineering foundation, not a finished Wi-Fi IEM system. **Network audio streaming and mobile receiver clients are not implemented.** A future network sender must be the sole queue consumer, acquire/release each block exactly once and perform all network I/O outside the real-time callback. The native C++ packet codec now defines the bounded v1 datagram and is covered by CTest, including rejection of non-finite samples without partial buffer mutation. The Python virtual lab still verifies simulated UDP loopback delivery and payload limits; it is not the production network sender or end-to-end transport. Production timestamps, transport, receiver jitter buffering, loss/reorder handling, reconnect, authentication and encryption remain to be implemented and tested.
 
 Bluetooth headphone support is deferred. Android P2/USB-C automatic output routing is specified in `docs/MOBILE_PROTOCOL_AND_ROLES.md`; it cannot be marked implemented until the Android receiver application exists and is tested on supported devices. Battery and Wi-Fi signal can only be shown when a mobile OS or receiver app exposes reliable telemetry. Physical outputs are currently cleared and are not AUX destinations; the internal buses are prepared for future Wi-Fi distribution.
 

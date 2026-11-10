@@ -67,13 +67,25 @@ int main() {
     CHECK(decodeAudioPacket(packet.data(), written, restored, decodedLeft.data(), decodedRight.data(), 127) == PacketResult::insufficientCapacity);
 
     left[0] = std::numeric_limits<float>::quiet_NaN();
+    packet.fill(0xa5);
+    const auto packetBeforeInvalidEncode = packet;
     CHECK(encodeAudioPacket(meta, left.data(), right.data(), packet.data(), packet.size(), written) == PacketResult::nonFiniteSample);
+    CHECK(written == 0);
+    CHECK(packet == packetBeforeInvalidEncode);
     left[0] = 0.0f;
     CHECK(encodeAudioPacket(meta, left.data(), right.data(), packet.data(), packet.size(), written) == PacketResult::success);
     auto nanPacket = packet;
     nanPacket[kHeaderBytes] = 0; nanPacket[kHeaderBytes + 1] = 0;
     nanPacket[kHeaderBytes + 2] = 0xc0; nanPacket[kHeaderBytes + 3] = 0x7f;
+    decodedLeft.fill(77.0f);
+    decodedRight.fill(88.0f);
+    restored.sequence = 0xdeadbeefu;
+    const auto leftBeforeInvalidDecode = decodedLeft;
+    const auto rightBeforeInvalidDecode = decodedRight;
     CHECK(decodeAudioPacket(nanPacket.data(), written, restored, decodedLeft.data(), decodedRight.data(), decodedLeft.size()) == PacketResult::nonFiniteSample);
+    CHECK(decodedLeft == leftBeforeInvalidDecode);
+    CHECK(decodedRight == rightBeforeInvalidDecode);
+    CHECK(restored.sequence == 0xdeadbeefu);
 
     CHECK(decodeAudioPacket(nullptr, written, restored, decodedLeft.data(), decodedRight.data(), decodedLeft.size()) == PacketResult::invalidArgument);
     CHECK(decodeAudioPacket(packet.data(), kMaxDatagramBytes + 1, restored, decodedLeft.data(), decodedRight.data(), decodedLeft.size()) == PacketResult::invalidPacket);
