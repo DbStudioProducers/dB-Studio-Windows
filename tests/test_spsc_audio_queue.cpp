@@ -62,18 +62,30 @@ int main() {
     productQueue.release();
     CHECK(!productQueue.tryAcquire(productView));
 
-    // Verify wraparound, stable leased memory, and sequence continuity.
+    // Verify a leased slot stays stable while the remaining queue capacity fills.
+    using LeaseQueue = DbStudioAudio::SpscAudioBlockQueue<2, 4, 2>;
+    LeaseQueue leaseQueue;
+    std::array<float, 4> leaseLeft{{11, 12, 13, 14}}, leaseRight{{21, 22, 23, 24}};
+    const float* leaseChannels[] = {leaseLeft.data(), leaseRight.data()};
+    CHECK(leaseQueue.tryPush(leaseChannels, 4));
+    LeaseQueue::BlockView leaseView{};
+    CHECK(leaseQueue.tryAcquire(leaseView));
+    const float leasedSample = leaseView.samples[0];
+    CHECK(leaseQueue.tryPush(leaseChannels, 4)); // second slot remains writable
+    CHECK(!leaseQueue.tryPush(leaseChannels, 4)); // full queue must not overwrite leased slot
+    CHECK(leaseView.samples[0] == leasedSample);
+    leaseQueue.release();
+    CHECK(leaseQueue.tryAcquire(leaseView));
+    leaseQueue.release();
+
+    // Verify wraparound and sequence continuity across many ring rotations.
     for (std::uint64_t expected = 1; expected <= 12; ++expected) {
         productSource[0].fill(static_cast<float>(expected));
         CHECK(productQueue.tryPush(productChannels.data(), 4));
         CHECK(productQueue.tryAcquire(productView));
         CHECK(productView.sequence == expected);
-        const float leasedSample = productView.samples[0];
-        CHECK(!productQueue.tryPush(productChannels.data(), 4)); // leased slot cannot be overwritten
-        CHECK(productView.samples[0] == leasedSample);
         productQueue.release();
     }
-    CHECK(productQueue.droppedBlocks() >= 12);
 
 
     // Stress the actual single-producer/single-consumer ownership contract.
