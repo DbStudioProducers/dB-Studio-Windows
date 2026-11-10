@@ -75,7 +75,7 @@ class NativeArchitectureChecks(unittest.TestCase):
 
     def test_audio_packet_codec_is_bounded_and_has_dedicated_ctest(self):
         codec = (ROOT / 'Source' / 'AudioPacketCodec.h').read_text(encoding='utf-8')
-        self.assertIn('kMaxDatagramBytes = 1200', codec)
+        self.assertRegex(codec, r'kMaxDatagramBytes\s*=\s*1200')
         self.assertIn('kMaxFramesPerPacket = 128', codec)
         self.assertIn('kHeaderBytes = 48', codec)
         self.assertIn('encodeAudioPacket', codec)

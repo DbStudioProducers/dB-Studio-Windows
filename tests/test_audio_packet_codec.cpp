@@ -52,6 +52,10 @@ int main() {
     invalid = meta; invalid.sessionId.fill(0);
     CHECK(encodeAudioPacket(invalid, left.data(), right.data(), packet.data(), packet.size(), written) == PacketResult::invalidMetadata);
 
+    // Restore a valid packet: failed encode calls above intentionally reset written to zero.
+    CHECK(encodeAudioPacket(meta, left.data(), right.data(), packet.data(), packet.size(), written) == PacketResult::success);
+    CHECK(written == kHeaderBytes + 128u * 8u);
+
     auto malformed = packet;
     malformed[4] = 2;
     CHECK(decodeAudioPacket(malformed.data(), written, restored, decodedLeft.data(), decodedRight.data(), decodedLeft.size()) == PacketResult::invalidPacket);

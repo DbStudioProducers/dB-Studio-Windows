@@ -4,7 +4,10 @@
 #include <cstdint>
 #include <cstring>
 #include <cmath>
+#include <limits>
 namespace DbStudioNet {
+static_assert(sizeof(float) == 4, "Audio packet v1 requires 32-bit float");
+static_assert(std::numeric_limits<float>::is_iec559, "Audio packet v1 requires IEEE-754 float");
 constexpr std::size_t kHeaderBytes=48, kMaxDatagramBytes=1200, kMaxFramesPerPacket=128, kChannelsPerStream=2;
 constexpr std::uint8_t kProtocolVersion=1, kCodecFloat32=1;
 struct PacketMetadata { std::array<std::uint8_t,16> sessionId{}; std::uint8_t streamId=0; std::uint32_t sequence=0; std::uint64_t timestampFrames=0; std::uint32_t sampleRate=48000; std::uint16_t frames=0; };
