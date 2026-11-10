@@ -1,6 +1,6 @@
 # dB Studio — plano mestre de implementação
 
-Estado em 10/11/2026: fundação nativa JUCE 8.0.6 em desenvolvimento; CI nativa completa aprovada no commit `12e38c6`. Este plano organiza o escopo acordado; não declara como concluídos os módulos ausentes. Requisitos de segurança detalhados em [SECURITY_AND_TRANSPORT.md](SECURITY_AND_TRANSPORT.md).
+Estado em 10/11/2026: fundação nativa JUCE 8.0.6 em desenvolvimento; CI nativa completa aprovada no commit `38d363e`. Este plano organiza o escopo acordado; não declara como concluídos os módulos ausentes. Requisitos de segurança detalhados em [SECURITY_AND_TRANSPORT.md](SECURITY_AND_TRANSPORT.md). Avaliação documental das bibliotecas QUIC em [QUIC_LIBRARY_EVALUATION.md](QUIC_LIBRARY_EVALUATION.md).
 
 ## Produto e limites
 - Servidor desktop Windows/macOS como autoridade de áudio, sessões, usuários e atribuições.
@@ -39,12 +39,14 @@ Aceite: testes determinísticos, callback dentro do orçamento e limite de canai
 3. [Especificado] Transporte QUIC v1 + TLS 1.3; QUIC DATAGRAM para áudio e streams QUIC para controle. Não criar criptografia própria nem permitir fallback em texto claro.
 4. [Especificado] Identidade por pareamento de uso único, credenciais por dispositivo, validação do servidor, armazenamento seguro e revogação.
 5. [Especificado] Autorização server-side por ação e AUX; o pacote v1 é payload e não autentica por si só.
-6. Implementar prova de compatibilidade da biblioteca QUIC para Windows/macOS/Android/iOS; avaliar manutenção, segurança, licenças e suporte a DATAGRAM antes de fixar dependência.
-7. Implementar sender como consumidor único da fila, com acquire/release seguro em todos os caminhos e backpressure limitado.
-8. Implementar jitter buffer, reordenação, descarte de pacotes atrasados, métricas, heartbeat e reconexão.
-9. Desabilitar 0-RTT para operações com efeito; proteger contra replay, mensagens duplicadas, sessões antigas e abuso.
-10. Manter rede e alocação fora do callback.
-Aceite: testes de perda, duplicação, reordenação, jitter, MTU, replay, revogação, reconexão e isolamento de 16 streams; latência medida em hardware. Transporte de produção bloqueado até autenticação criptográfica e revisão de segurança.
+6. [Avaliação documental concluída] XQUIC é a candidata inicial para POC por cobrir documentalmente as quatro plataformas e expor API DATAGRAM. Ainda não é dependência aprovada. Ver [QUIC_LIBRARY_EVALUATION.md](QUIC_LIBRARY_EVALUATION.md).
+7. Executar POC XQUIC isolada: builds Windows/macOS/Android/iOS, QUIC v1, DATAGRAM bidirecional, validação de certificados, autenticação de dispositivo, 0-RTT desabilitado, licença/dependências e testes adversariais.
+8. Só após POC aprovada, fixar dependência e implementar transporte atrás de interface isolada.
+9. Implementar sender como consumidor único da fila, com acquire/release seguro em todos os caminhos e backpressure limitado.
+10. Implementar jitter buffer, reordenação, descarte de pacotes atrasados, métricas, heartbeat e reconexão.
+11. Desabilitar 0-RTT para operações com efeito; proteger contra replay, mensagens duplicadas, sessões antigas e abuso.
+12. Manter rede e alocação fora do callback.
+Aceite: builds verdes nas quatro plataformas; testes de perda, duplicação, reordenação, jitter, MTU, replay, revogação, reconexão e isolamento de 16 streams; latência medida em hardware. Transporte de produção bloqueado até autenticação criptográfica e revisão de segurança.
 
 ## Fase 3 — Identidade, usuários, dispositivos e Master
 1. Autenticação real, armazenamento seguro, expiração e revogação.
