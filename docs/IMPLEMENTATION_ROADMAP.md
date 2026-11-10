@@ -1,6 +1,6 @@
 # dB Studio — plano mestre de implementação
 
-Estado em 10/11/2026: fundação nativa JUCE 8.0.6 em desenvolvimento; CI nativa completa aprovada no commit `7f6cbdf`. Este plano organiza o escopo acordado; não declara como concluídos os módulos ausentes.
+Estado em 10/11/2026: fundação nativa JUCE 8.0.6 em desenvolvimento; CI nativa completa aprovada no commit `12e38c6`. Este plano organiza o escopo acordado; não declara como concluídos os módulos ausentes. Requisitos de segurança detalhados em [SECURITY_AND_TRANSPORT.md](SECURITY_AND_TRANSPORT.md).
 
 ## Produto e limites
 - Servidor desktop Windows/macOS como autoridade de áudio, sessões, usuários e atribuições.
@@ -36,11 +36,15 @@ Aceite: testes determinísticos, callback dentro do orçamento e limite de canai
 ## Fase 2 — Protocolo e transporte de áudio
 1. [Concluído em CI] Contrato de datagrama v1: cabeçalho de 48 bytes, sessão de 128 bits, stream AUX 0–15, sequência, timestamp em frames, taxa e 128 frames estéreo float32 por pacote.
 2. [Concluído em CI] Codificação de cabeçalho em big-endian e payload float32 little-endian, limite de 1200 bytes; encoder/decoder rejeitam NaN/Inf sem modificar parcialmente os buffers de entrada/saída.
-3. Implementar sender como consumidor único da fila, com acquire/release seguro em todos os caminhos.
-5. Implementar jitter buffer, reordenação, descarte de pacotes atrasados, métricas, heartbeat e reconexão.
-6. Proteger áudio e controle com autenticação criptográfica; nunca confiar em IDs, role ou AUX enviados pelo cliente. O codec de pacote atual não fornece criptografia nem autenticação.
-7. Manter rede e alocação fora do callback.
-Aceite: testes de perda, duplicação, reordenação, jitter, MTU, replay, reconexão e isolamento de 16 streams; latência medida em hardware.
+3. [Especificado] Transporte QUIC v1 + TLS 1.3; QUIC DATAGRAM para áudio e streams QUIC para controle. Não criar criptografia própria nem permitir fallback em texto claro.
+4. [Especificado] Identidade por pareamento de uso único, credenciais por dispositivo, validação do servidor, armazenamento seguro e revogação.
+5. [Especificado] Autorização server-side por ação e AUX; o pacote v1 é payload e não autentica por si só.
+6. Implementar prova de compatibilidade da biblioteca QUIC para Windows/macOS/Android/iOS; avaliar manutenção, segurança, licenças e suporte a DATAGRAM antes de fixar dependência.
+7. Implementar sender como consumidor único da fila, com acquire/release seguro em todos os caminhos e backpressure limitado.
+8. Implementar jitter buffer, reordenação, descarte de pacotes atrasados, métricas, heartbeat e reconexão.
+9. Desabilitar 0-RTT para operações com efeito; proteger contra replay, mensagens duplicadas, sessões antigas e abuso.
+10. Manter rede e alocação fora do callback.
+Aceite: testes de perda, duplicação, reordenação, jitter, MTU, replay, revogação, reconexão e isolamento de 16 streams; latência medida em hardware. Transporte de produção bloqueado até autenticação criptográfica e revisão de segurança.
 
 ## Fase 3 — Identidade, usuários, dispositivos e Master
 1. Autenticação real, armazenamento seguro, expiração e revogação.
@@ -87,11 +91,14 @@ Aceite: alinhamento, decoder independente, stress com streaming e recuperação.
 
 ## Fase 8 — Segurança e validação de palco
 1. Revisar ameaças, dependências, licenças, segredos e logs.
-2. Carga com 32 entradas, 16 mixes e 16 receptores.
-3. Medir latência, jitter, perda, reconexão, CPU, memória, calor e autonomia.
-4. Teste de longa duração e falhas.
-5. Mesa/interface, access point dedicado, Android/iPhone e fones cabeados.
-6. Corrigir bloqueadores e repetir a suíte antes de release candidate.
+2. Fuzzing de parsers/codec, testes de propriedade e sanitizers quando suportados.
+3. Testes adversariais de certificados, replay, revogação, acesso cruzado, flood e esgotamento de recursos.
+4. Carga com 32 entradas, 16 mixes e 16 receptores.
+5. Medir latência, jitter, perda, reconexão, CPU, memória, calor e autonomia.
+6. Teste de longa duração e falhas.
+7. Mesa/interface, access point dedicado, Android/iPhone e fones cabeados.
+8. Revisão independente de segurança antes de release candidate.
+Aceite: nenhum bloqueador crítico/alto aberto, transporte criptografado, testes de carga e teste físico aprovados.
 
 ## Fase 9 — Distribuição
 1. Instalador Windows assinado quando houver certificado; requisitos/drivers documentados.
