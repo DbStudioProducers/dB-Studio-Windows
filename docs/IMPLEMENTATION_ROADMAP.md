@@ -1,6 +1,6 @@
 # dB Studio — plano mestre de implementação
 
-Estado em 10/11/2026: fundação nativa JUCE 8.0.6 em desenvolvimento; CI nativa completa aprovada no commit `9fd3765`. Este plano organiza o escopo acordado; não declara como concluídos os módulos ausentes.
+Estado em 10/11/2026: fundação nativa JUCE 8.0.6 em desenvolvimento; CI nativa completa aprovada no commit `7f6cbdf`. Este plano organiza o escopo acordado; não declara como concluídos os módulos ausentes.
 
 ## Produto e limites
 - Servidor desktop Windows/macOS como autoridade de áudio, sessões, usuários e atribuições.
@@ -37,9 +37,9 @@ Aceite: testes determinísticos, callback dentro do orçamento e limite de canai
 1. [Concluído em CI] Contrato de datagrama v1: cabeçalho de 48 bytes, sessão de 128 bits, stream AUX 0–15, sequência, timestamp em frames, taxa e 128 frames estéreo float32 por pacote.
 2. [Concluído em CI] Codificação de cabeçalho em big-endian e payload float32 little-endian, limite de 1200 bytes; encoder/decoder rejeitam NaN/Inf sem modificar parcialmente os buffers de entrada/saída.
 3. Implementar sender como consumidor único da fila, com acquire/release seguro em todos os caminhos.
-4. Implementar jitter buffer, reordenação, descarte de pacotes atrasados, métricas, heartbeat e reconexão.
-5. Proteger áudio e controle com autenticação criptográfica; nunca confiar em IDs, role ou AUX enviados pelo cliente. O codec de pacote atual não fornece criptografia nem autenticação.
-6. Manter rede e alocação fora do callback.
+5. Implementar jitter buffer, reordenação, descarte de pacotes atrasados, métricas, heartbeat e reconexão.
+6. Proteger áudio e controle com autenticação criptográfica; nunca confiar em IDs, role ou AUX enviados pelo cliente. O codec de pacote atual não fornece criptografia nem autenticação.
+7. Manter rede e alocação fora do callback.
 Aceite: testes de perda, duplicação, reordenação, jitter, MTU, replay, reconexão e isolamento de 16 streams; latência medida em hardware.
 
 ## Fase 3 — Identidade, usuários, dispositivos e Master

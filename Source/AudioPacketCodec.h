@@ -46,4 +46,66 @@ inline PacketResult decodeAudioPacket(const std::uint8_t*p,std::size_t n,PacketM
  for(std::size_t i=0;i<x.frames;++i){const auto*q=p+kHeaderBytes+i*8;const auto lb=detail::get32le(q),rb=detail::get32le(q+4);std::memcpy(l+i,&lb,4);std::memcpy(r+i,&rb,4);}
  m=x;return PacketResult::success;
 }
+
+// Single sender-thread packetizer for the 16 stereo AUX streams. The caller
+// supplies the channel-major queue block and its absolute first-frame clock.
+// Sequence counters advance only after a packet has been encoded successfully.
+class AudioPacketStreamEncoder {
+public:
+    explicit AudioPacketStreamEncoder(const std::array<std::uint8_t, 16>& sessionId,
+                                      std::uint32_t sampleRate = 48000) noexcept
+        : sessionId_(sessionId), sampleRate_(sampleRate) {}
+
+    PacketResult encodeBlockPacket(const float* channelMajorSamples,
+                                   std::size_t channelCount,
+                                   std::size_t channelStride,
+                                   std::size_t totalFrames,
+                                   std::size_t frameOffset,
+                                   std::uint8_t streamId,
+                                   std::uint64_t blockTimestampFrames,
+                                   std::uint8_t* destination,
+                                   std::size_t capacity,
+                                   std::size_t& written) noexcept {
+        written = 0;
+        if (channelMajorSamples == nullptr || destination == nullptr)
+            return PacketResult::invalidArgument;
+        if (streamId >= 16 || sampleRate_ < 8000 || sampleRate_ > 192000)
+            return PacketResult::invalidMetadata;
+        if (totalFrames == 0 || totalFrames > channelStride || frameOffset >= totalFrames)
+            return PacketResult::invalidFrameCount;
+        const auto leftChannel = static_cast<std::size_t>(streamId) * 2;
+        if (channelCount < leftChannel + 2)
+            return PacketResult::invalidArgument;
+
+        const auto packetFrames = (totalFrames - frameOffset < kMaxFramesPerPacket)
+            ? totalFrames - frameOffset : kMaxFramesPerPacket;
+        if (blockTimestampFrames > std::numeric_limits<std::uint64_t>::max() - frameOffset)
+            return PacketResult::invalidMetadata;
+
+        PacketMetadata metadata{};
+        metadata.sessionId = sessionId_;
+        metadata.streamId = streamId;
+        metadata.sequence = nextSequence_[streamId];
+        metadata.timestampFrames = blockTimestampFrames + frameOffset;
+        metadata.sampleRate = sampleRate_;
+        metadata.frames = static_cast<std::uint16_t>(packetFrames);
+
+        const auto* left = channelMajorSamples + leftChannel * channelStride + frameOffset;
+        const auto* right = channelMajorSamples + (leftChannel + 1) * channelStride + frameOffset;
+        const auto result = encodeAudioPacket(metadata, left, right, destination, capacity, written);
+        if (result == PacketResult::success)
+            ++nextSequence_[streamId];
+        return result;
+    }
+
+    std::uint32_t nextSequence(std::uint8_t streamId) const noexcept {
+        return streamId < 16 ? nextSequence_[streamId] : 0;
+    }
+
+private:
+    std::array<std::uint8_t, 16> sessionId_{};
+    std::uint32_t sampleRate_ = 48000;
+    std::array<std::uint32_t, 16> nextSequence_{};
+};
+
 }

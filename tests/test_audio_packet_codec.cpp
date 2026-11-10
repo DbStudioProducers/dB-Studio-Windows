@@ -87,6 +87,31 @@ int main() {
     CHECK(decodedRight == rightBeforeInvalidDecode);
     CHECK(restored.sequence == 0xdeadbeefu);
 
+    // Packetize a channel-major 32-channel AUX block into bounded 128-frame datagrams.
+    std::array<float, 32 * 160> channelMajor{};
+    for (std::size_t channel = 0; channel < 32; ++channel)
+        for (std::size_t frame = 0; frame < 130; ++frame)
+            channelMajor[channel * 160 + frame] = static_cast<float>(channel * 1000 + frame);
+    AudioPacketStreamEncoder streamEncoder(meta.sessionId, 48000);
+    CHECK(streamEncoder.encodeBlockPacket(channelMajor.data(), 32, 160, 130, 0, 0, 9000,
+          packet.data(), packet.size(), written) == PacketResult::success);
+    CHECK(decodeAudioPacket(packet.data(), written, restored, decodedLeft.data(), decodedRight.data(), decodedLeft.size()) == PacketResult::success);
+    CHECK(restored.streamId == 0 && restored.sequence == 0 && restored.timestampFrames == 9000 && restored.frames == 128);
+    CHECK(decodedLeft[0] == 0.0f && decodedRight[0] == 1000.0f && decodedLeft[127] == 127.0f);
+    CHECK(streamEncoder.encodeBlockPacket(channelMajor.data(), 32, 160, 130, 128, 0, 9000,
+          packet.data(), packet.size(), written) == PacketResult::success);
+    CHECK(decodeAudioPacket(packet.data(), written, restored, decodedLeft.data(), decodedRight.data(), decodedLeft.size()) == PacketResult::success);
+    CHECK(restored.sequence == 1 && restored.timestampFrames == 9128 && restored.frames == 2);
+    CHECK(decodedLeft[0] == 128.0f && decodedRight[1] == 1129.0f);
+    CHECK(streamEncoder.encodeBlockPacket(channelMajor.data(), 32, 160, 130, 0, 15, 9000,
+          packet.data(), packet.size(), written) == PacketResult::success);
+    CHECK(decodeAudioPacket(packet.data(), written, restored, decodedLeft.data(), decodedRight.data(), decodedLeft.size()) == PacketResult::success);
+    CHECK(restored.streamId == 15 && restored.sequence == 0);
+    CHECK(decodedLeft[0] == 30000.0f && decodedRight[0] == 31000.0f);
+    CHECK(streamEncoder.nextSequence(0) == 2 && streamEncoder.nextSequence(15) == 1);
+    CHECK(streamEncoder.encodeBlockPacket(channelMajor.data(), 31, 160, 130, 0, 15, 9000,
+          packet.data(), packet.size(), written) == PacketResult::invalidArgument);
+    CHECK(streamEncoder.nextSequence(15) == 1); // failed packet does not consume a sequence
     CHECK(decodeAudioPacket(nullptr, written, restored, decodedLeft.data(), decodedRight.data(), decodedLeft.size()) == PacketResult::invalidArgument);
     CHECK(decodeAudioPacket(packet.data(), kMaxDatagramBytes + 1, restored, decodedLeft.data(), decodedRight.data(), decodedLeft.size()) == PacketResult::invalidPacket);
     return 0;

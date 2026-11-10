@@ -62,6 +62,20 @@ int main() {
     productQueue.release();
     CHECK(!productQueue.tryAcquire(productView));
 
+    // Verify wraparound, stable leased memory, and sequence continuity.
+    for (std::uint64_t expected = 1; expected <= 12; ++expected) {
+        productSource[0].fill(static_cast<float>(expected));
+        CHECK(productQueue.tryPush(productChannels.data(), 4));
+        CHECK(productQueue.tryAcquire(productView));
+        CHECK(productView.sequence == expected);
+        const float leasedSample = productView.samples[0];
+        CHECK(!productQueue.tryPush(productChannels.data(), 4)); // leased slot cannot be overwritten
+        CHECK(productView.samples[0] == leasedSample);
+        productQueue.release();
+    }
+    CHECK(productQueue.droppedBlocks() >= 12);
+
+
     // Stress the actual single-producer/single-consumer ownership contract.
     Queue concurrentQueue;
     constexpr std::uint64_t iterations = 30000;

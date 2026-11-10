@@ -12,6 +12,8 @@ namespace DbStudioAudio {
 template <std::size_t Channels, std::size_t MaxFrames, std::size_t Slots>
 class SpscAudioBlockQueue {
     static_assert(Channels > 0 && MaxFrames > 0 && Slots > 1, "Invalid queue dimensions");
+    static_assert(std::atomic<std::uint64_t>::is_always_lock_free,
+                  "Real-time queue requires lock-free 64-bit atomics on the target architecture.");
 public:
     struct BlockView {
         const float* samples = nullptr; // channel-major, MaxFrames stride
