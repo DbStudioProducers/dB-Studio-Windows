@@ -1,6 +1,6 @@
 #include "../Source/TransportSecurityPolicy.h"
 #include <iostream>
-#define CHECK(x) do { if (!(x)) { std::cerr << "FAIL: " << #x << " line " << __LINE__ << '\\n'; return 1; } } while (false)
+#define CHECK(x) do { if (!(x)) { std::cerr << "FAIL: " << #x << " line " << __LINE__ << '\n'; return 1; } } while (false)
 int main() {
     using namespace DbStudioSecurity;
     TransportSecurityGate gate;

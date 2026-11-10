@@ -75,6 +75,17 @@ class NativeArchitectureChecks(unittest.TestCase):
         workflow = (ROOT / '.github' / 'workflows' / 'windows-build.yml').read_text(encoding='utf-8')
         self.assertIn('dBStudioTransportSecurityTests', workflow)
         self.assertIn('poc/**', workflow)
+
+    def test_transport_security_policy_has_dedicated_ctest_and_is_not_misrepresented_as_tls(self):
+        policy = (ROOT / 'Source' / 'TransportSecurityPolicy.h').read_text(encoding='utf-8')
+        self.assertIn('This class performs NO TLS', policy)
+        self.assertIn('phase_ == TransportPhase::authorized && !earlyData', policy)
+        self.assertIn('add_executable(dBStudioTransportSecurityTests tests/test_transport_security_policy.cpp)', self.cmake)
+        self.assertIn('add_test(NAME TransportSecurityPolicy COMMAND dBStudioTransportSecurityTests)', self.cmake)
+        workflow = (ROOT / '.github' / 'workflows' / 'windows-build.yml').read_text(encoding='utf-8')
+        self.assertIn('dBStudioTransportSecurityTests', workflow)
+        self.assertIn('poc/**', workflow)
+
     def test_product_requirements_are_documented_not_misrepresented_as_complete(self):
         spec = (ROOT / 'docs' / 'DEVICE_HISTORY_AND_DBS_FORMAT.md').read_text(encoding='utf-8')
         self.assertIn('Connection History', spec)
