@@ -402,9 +402,12 @@ int run(bool server, const char* address, const char* cert, const char* key,
 } // namespace
 
 int main(int argc, char** argv) {
-    if (argc < 2)
+    if (argc < 2) {
+        std::cerr << "probe invalid arguments: argc=" << argc << "\n" << std::flush;
         return 2;
+    }
     const std::string mode = argv[1];
+    std::cerr << "probe mode=" << mode << " argc=" << argc << "\n" << std::flush;
     if (mode == "server" && argc == 5)
         return run(true, argv[2], argv[3], argv[4], nullptr, false, false);
     if (mode == "client" && argc >= 4) {
@@ -415,5 +418,7 @@ int main(int argc, char** argv) {
         }
         return run(false, argv[2], nullptr, nullptr, argv[3], badPin, badToken);
     }
+    std::cerr << "probe unsupported argument combination: mode=" << mode
+              << " argc=" << argc << "\n" << std::flush;
     return 2;
 }
