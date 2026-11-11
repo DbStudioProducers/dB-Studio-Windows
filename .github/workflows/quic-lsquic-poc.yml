@@ -7,6 +7,7 @@ on:
     paths:
       - ".github/workflows/quic-lsquic-poc.yml"
       - "docs/QUIC_LIBRARY_EVALUATION.md"
+      - "poc/lsquic/**"
 
 permissions:
   contents: read
@@ -75,6 +76,17 @@ jobs:
           cmake -S third_party/boringssl -B build/boringssl -A x64 -DBUILD_SHARED_LIBS=OFF -DOPENSSL_NO_ASM=1
           cmake --build build/boringssl --config Debug --parallel 2
 
+      - name: Prepare dB Studio IEM transport probe
+        shell: pwsh
+        run: |
+          Copy-Item "poc/lsquic/iem_transport_probe.cpp" "third_party/lsquic/bin/iem_transport_probe.cpp"
+          $probeCmake = @'
+          add_executable(iem_transport_probe iem_transport_probe.cpp prog.c test_common.c test_cert.c)
+          target_include_directories(iem_transport_probe PRIVATE "${CMAKE_SOURCE_DIR}/../../Source")
+          target_link_libraries(iem_transport_probe ${LIBS})
+          '@
+          Add-Content -Path "third_party/lsquic/bin/CMakeLists.txt" -Value $probeCmake
+
       - name: Configure LSQUIC with pinned dependencies
         shell: pwsh
         run: |
@@ -102,3 +114,56 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "LSQUIC ALL_BUILD failed with exit code $LASTEXITCODE" }
           cmake --build build/lsquic --config Debug --target RUN_TESTS --parallel 2
           if ($LASTEXITCODE -ne 0) { throw "LSQUIC RUN_TESTS failed with exit code $LASTEXITCODE" }
+
+      - name: Run QUIC TLS device authentication and IEM datagram probe
+        shell: pwsh
+        run: |
+          $probe = Join-Path $PWD "build/lsquic/bin/Debug/iem_transport_probe.exe"
+          if (!(Test-Path $probe)) { throw "IEM transport probe executable was not produced" }
+
+          $serverCert = New-SelfSignedCertificate -DnsName "iem-poc.local" -CertStoreLocation "Cert:\CurrentUser\My" -KeyAlgorithm RSA -KeyLength 2048 -KeyExportPolicy Exportable -Type SSLServerAuthentication -NotAfter (Get-Date).AddDays(1)
+          $rsa = [System.Security.Cryptography.X509Certificates.RSACertificateExtensions]::GetRSAPrivateKey($serverCert)
+          $certPem = [System.Security.Cryptography.PemEncoding]::Write("CERTIFICATE", [byte[]]$serverCert.RawData)
+          $keyPem = [System.Security.Cryptography.PemEncoding]::Write("PRIVATE KEY", [byte[]]$rsa.ExportPkcs8PrivateKey())
+          $certPath = Join-Path $env:RUNNER_TEMP "iem-poc-cert.pem"
+          $keyPath = Join-Path $env:RUNNER_TEMP "iem-poc-key.pem"
+          [System.IO.File]::WriteAllText($certPath, [string]$certPem, [System.Text.UTF8Encoding]::new($false))
+          [System.IO.File]::WriteAllText($keyPath, [string]$keyPem, [System.Text.UTF8Encoding]::new($false))
+          $rsa.Dispose()
+
+          function Start-IemProbeServer {
+            $stdout = Join-Path $env:RUNNER_TEMP "iem-server-out.log"
+            $stderr = Join-Path $env:RUNNER_TEMP "iem-server-err.log"
+            $server = Start-Process -FilePath $probe -ArgumentList @("server", "127.0.0.1:24567", $certPath, $keyPath) -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+            Start-Sleep -Seconds 2
+            if ($server.HasExited) {
+              Get-Content $stdout, $stderr
+              throw "IEM QUIC test server exited before accepting a connection"
+            }
+            return $server
+          }
+          function Stop-IemProbeServer($server) {
+            if ($server -and !$server.HasExited) { Stop-Process -Id $server.Id -Force }
+            Start-Sleep -Milliseconds 500
+          }
+
+          $server = Start-IemProbeServer
+          & $probe client "127.0.0.1:24567" $certPath "--bad-pin"
+          $badPinExit = $LASTEXITCODE
+          Stop-IemProbeServer $server
+          if ($badPinExit -eq 0) { throw "A certificate with the wrong pin was accepted" }
+
+          $server = Start-IemProbeServer
+          & $probe client "127.0.0.1:24567" $certPath "--bad-token"
+          $badTokenExit = $LASTEXITCODE
+          Stop-IemProbeServer $server
+          if ($badTokenExit -eq 0) { throw "An unpaired device was accepted" }
+
+          $server = Start-IemProbeServer
+          $probeOutput = & $probe client "127.0.0.1:24567" $certPath 2>&1
+          $probeExit = $LASTEXITCODE
+          $probeOutput | Write-Host
+          Stop-IemProbeServer $server
+          if ($probeExit -ne 0 -or ($probeOutput -join "`n") -notmatch "QUIC_TLS_DEVICE_AUTH_AND_AUDIO_DATAGRAM_OK") {
+            throw "Authenticated QUIC audio datagram round trip failed"
+          }
