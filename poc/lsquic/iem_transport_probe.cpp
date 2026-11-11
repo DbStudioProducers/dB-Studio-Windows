@@ -12,19 +12,14 @@
 #include <openssl/pem.h>
 #include <openssl/x509.h>
 #include <openssl/ssl.h>
+#include <sys/queue.h>
 #include "lsquic.h"
 #include "prog.h"
+#include "../src/liblsquic/lsquic_hash.h"
 #include "test_common.h"
 #include "test_cert.h"
 #include "AudioPacketCodec.h"
 #include "TransportSecurityPolicy.h"
-
-namespace {
-constexpr char kAlpn[] = "dbs-iem-poc/1";
-constexpr char kPairingProof[] = "PAIR:demo-device-01:aux=0\n";
-constexpr char kAuthReply[] = "AUTH_OK\n";
-constexpr char kServerName[] = "iem-poc.local";
-constexpr std::size_t kMaxControl = 128;
 
 struct App;
 struct lsquic_conn_ctx {
@@ -52,6 +47,13 @@ struct App {
     std::string certificatePath;
     std::string keyPath;
 };
+
+namespace {
+constexpr char kAlpn[] = "dbs-iem-poc/1";
+constexpr char kPairingProof[] = "PAIR:demo-device-01:aux=0\n";
+constexpr char kAuthReply[] = "AUTH_OK\n";
+constexpr char kServerName[] = "iem-poc.local";
+constexpr std::size_t kMaxControl = 128;
 
 App* g_app = nullptr;
 
@@ -139,8 +141,11 @@ void onConnectionClosed(lsquic_conn_t* conn) {
     App* app = context->app;
     lsquic_conn_set_ctx(conn, nullptr);
     delete context;
-    if (app && app->server)
-        std::cout << "QUIC device session closed\n";
+    if (app) {
+        if (app->server)
+            std::cout << "QUIC device session closed\n";
+        prog_stop(&app->program);
+    }
 }
 
 lsquic_stream_ctx_t* onNewStream(void* opaque, lsquic_stream_t* stream) {
