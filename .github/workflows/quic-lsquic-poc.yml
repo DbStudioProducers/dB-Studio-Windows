@@ -181,19 +181,7 @@ jobs:
             Start-Sleep -Milliseconds 500
           }
           $server = Start-IemProbeServer 24567
-          & $probe client "127.0.0.1:24567" $certPath "--bad-pin"
-          $badPinExit = $LASTEXITCODE
-          Stop-IemProbeServer $server
-          if ($badPinExit -eq 0) { throw "A certificate with the wrong pin was accepted" }
-
-          $server = Start-IemProbeServer 24568
-          & $probe client "127.0.0.1:24568" $certPath "--bad-token"
-          $badTokenExit = $LASTEXITCODE
-          Stop-IemProbeServer $server
-          if ($badTokenExit -eq 0) { throw "An unpaired device was accepted" }
-
-          $server = Start-IemProbeServer 24569
-          $probeOutput = & $probe client "127.0.0.1:24569" $certPath 2>&1
+          $probeOutput = & $probe client "127.0.0.1:24567" $certPath 2>&1
           $probeExit = $LASTEXITCODE
           Write-Host "Authenticated audio probe exit code: $probeExit"
           $probeOutput | Write-Host
@@ -201,3 +189,15 @@ jobs:
           if ($probeExit -ne 0 -or ($probeOutput -join "`n") -notmatch "QUIC_TLS_DEVICE_AUTH_AND_AUDIO_DATAGRAM_OK") {
             throw "Authenticated QUIC audio datagram round trip failed"
           }
+
+          $server = Start-IemProbeServer 24568
+          & $probe client "127.0.0.1:24568" $certPath "--bad-pin"
+          $badPinExit = $LASTEXITCODE
+          Stop-IemProbeServer $server
+          if ($badPinExit -eq 0) { throw "A certificate with the wrong pin was accepted" }
+
+          $server = Start-IemProbeServer 24569
+          & $probe client "127.0.0.1:24569" $certPath "--bad-token"
+          $badTokenExit = $LASTEXITCODE
+          Stop-IemProbeServer $server
+          if ($badTokenExit -eq 0) { throw "An unpaired device was accepted" }
