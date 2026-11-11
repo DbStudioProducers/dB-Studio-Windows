@@ -75,8 +75,9 @@ int main() {
         CHECK(metadata.sampleRate == 48000);
         CHECK(metadata.frames == 128);
         const auto channel = static_cast<std::size_t>(metadata.streamId) * 2;
-        CHECK(std::abs(left[0] - static_cast<float>((channel + 1) * 0.01)) < 1.0e-6f);
-        CHECK(std::abs(right[0] - static_cast<float>((channel + 2) * 0.01)) < 1.0e-6f);
+        const auto sourceFrame = static_cast<int>(i % 2) * 128;
+        CHECK(std::abs(left[0] - static_cast<float>((channel + 1) * 0.01 + sourceFrame * 0.0001)) < 1.0e-6f);
+        CHECK(std::abs(right[0] - static_cast<float>((channel + 2) * 0.01 + sourceFrame * 0.0001)) < 1.0e-6f);
     }
 
     Queue failingQueue;
