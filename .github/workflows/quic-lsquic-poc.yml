@@ -45,6 +45,17 @@ jobs:
           "VCPKG_ROOT=$vcpkgRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           & (Join-Path $vcpkgRoot "vcpkg.exe") install zlib:x64-windows-static libevent:x64-windows-static pcre:x64-windows-static getopt:x64-windows
 
+      - name: Verify vcpkg zlib artifacts
+        shell: pwsh
+        run: |
+          $zlibInclude = Join-Path $env:VCPKG_ROOT "installed/x64-windows-static/include/zlib.h"
+          $zlibDebug = Join-Path $env:VCPKG_ROOT "installed/x64-windows-static/debug/lib/zd.lib"
+          $zlibRelease = Join-Path $env:VCPKG_ROOT "installed/x64-windows-static/lib/z.lib"
+          if (!(Test-Path $zlibInclude) -or !(Test-Path $zlibDebug) -or !(Test-Path $zlibRelease)) {
+            Get-ChildItem (Join-Path $env:VCPKG_ROOT "installed/x64-windows-static") -Recurse -Filter "*.lib" | Select-Object -ExpandProperty FullName
+            throw "Expected zlib header and Debug/Release static libraries were not found"
+          }
+
       - name: Fetch pinned LSQUIC and BoringSSL
         shell: pwsh
         run: |
