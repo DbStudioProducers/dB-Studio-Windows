@@ -139,7 +139,9 @@ jobs:
           function Start-IemProbeServer {
             $stdout = Join-Path $env:RUNNER_TEMP "iem-server-out.log"
             $stderr = Join-Path $env:RUNNER_TEMP "iem-server-err.log"
-            $server = Start-Process -FilePath $probe -ArgumentList @("server", "127.0.0.1:24567", $certPath, $keyPath) -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+            $serverArguments = 'server 127.0.0.1:24567 "{0}" "{1}"' -f $certPath, $keyPath
+            Write-Host "Starting IEM QUIC server with arguments: $serverArguments"
+            $server = Start-Process -FilePath $probe -ArgumentList $serverArguments -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
             Start-Sleep -Seconds 2
             if ($server.HasExited) {
               Write-Host "IEM QUIC test server exit code: $($server.ExitCode)"
