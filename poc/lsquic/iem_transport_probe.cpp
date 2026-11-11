@@ -136,6 +136,7 @@ lsquic_conn_ctx_t* onNewConnection(void* opaque, lsquic_conn_t* conn) {
         // Server TLS is complete here. Device identity still requires the authenticated control stream.
         std::cout << "TLS 1.3 QUIC peer connected; awaiting device pairing proof\n";
     } else {
+        std::cout << "Client QUIC connection created\n";
         context->gate.beginHandshake();
     }
     return context;
@@ -292,6 +293,7 @@ void onHandshakeDone(lsquic_conn_t* conn, enum lsquic_hsk_status status) {
     auto* context = static_cast<lsquic_conn_ctx_t*>(lsquic_conn_get_ctx(conn));
     if (!context || !context->app || context->app->server)
         return;
+    std::cout << "Client handshake status: " << static_cast<int>(status) << "\n";
     if ((status != LSQ_HSK_OK && status != LSQ_HSK_RESUMED_OK) ||
         !context->gate.markPeerVerified(true)) {
         std::cerr << "TLS peer verification failed\n";
@@ -387,11 +389,13 @@ int run(bool server, const char* address, const char* cert, const char* key,
         if (runResult != 0)
             app.exitCode = 1;
     } else {
-        if (prog_connect(&app.program, nullptr, 0) != 0) {
-            std::cerr << "probe client connect setup failed\n" << std::flush;
+        const int connectResult = prog_connect(&app.program, nullptr, 0);
+        std::cerr << "probe client connect setup result: " << connectResult << "\n" << std::flush;
+        if (connectResult != 0)
             return 2;
-        }
-        prog_run(&app.program);
+        const int runResult = prog_run(&app.program);
+        std::cerr << "probe client event loop returned: " << runResult
+                  << ", final status=" << app.exitCode << "\n" << std::flush;
     }
     prog_cleanup(&app.program);
     if (app.pinnedCertificate)
