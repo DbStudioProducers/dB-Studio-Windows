@@ -128,12 +128,22 @@ jobs:
 
           $serverCert = New-SelfSignedCertificate -DnsName "iem-poc.local" -CertStoreLocation "Cert:\CurrentUser\My" -KeyAlgorithm RSA -KeyLength 2048 -KeyExportPolicy Exportable -Type SSLServerAuthentication -NotAfter (Get-Date).AddDays(1)
           $rsa = [System.Security.Cryptography.X509Certificates.RSACertificateExtensions]::GetRSAPrivateKey($serverCert)
-          $certPem = [System.Security.Cryptography.PemEncoding]::Write("CERTIFICATE", [byte[]]$serverCert.RawData)
-          $keyPem = [System.Security.Cryptography.PemEncoding]::Write("PRIVATE KEY", [byte[]]$rsa.ExportPkcs8PrivateKey())
+          function ConvertTo-PemText([string]$label, [byte[]]$bytes) {
+            $base64 = [Convert]::ToBase64String($bytes)
+            $builder = [System.Text.StringBuilder]::new()
+            [void]$builder.AppendLine("-----BEGIN $label-----")
+            for ($offset = 0; $offset -lt $base64.Length; $offset += 64) {
+              $length = [Math]::Min(64, $base64.Length - $offset)
+              [void]$builder.AppendLine($base64.Substring($offset, $length))
+            }
+            [void]$builder.AppendLine("-----END $label-----")
+            return $builder.ToString()
+          }
+          $keyBytes = $rsa.ExportPkcs8PrivateKey()
           $certPath = Join-Path $env:RUNNER_TEMP "iem-poc-cert.pem"
           $keyPath = Join-Path $env:RUNNER_TEMP "iem-poc-key.pem"
-          [System.IO.File]::WriteAllText($certPath, [string]$certPem, [System.Text.UTF8Encoding]::new($false))
-          [System.IO.File]::WriteAllText($keyPath, [string]$keyPem, [System.Text.UTF8Encoding]::new($false))
+          [System.IO.File]::WriteAllText($certPath, (ConvertTo-PemText "CERTIFICATE" $serverCert.RawData), [System.Text.UTF8Encoding]::new($false))
+          [System.IO.File]::WriteAllText($keyPath, (ConvertTo-PemText "PRIVATE KEY" $keyBytes), [System.Text.UTF8Encoding]::new($false))
           $rsa.Dispose()
 
           function Start-IemProbeServer {
