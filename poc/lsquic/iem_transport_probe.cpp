@@ -319,35 +319,63 @@ int run(bool server, const char* address, const char* cert, const char* key,
     TAILQ_INIT(&app.sports);
 
     if (prog_init(&app.program, server ? LSENG_SERVER : 0, &app.sports,
-                  &streamInterface, &app) != 0)
+                  &streamInterface, &app) != 0) {
+        std::cerr << "probe initialization failed: prog_init\n" << std::flush;
         return 2;
+    }
     app.program.prog_settings.es_datagrams = 1;
     app.program.prog_api.ea_alpn = kAlpn;
 
     if (server) {
         _putenv_s("LSQUIC_ENABLE_EARLY_DATA", "0");
         std::string spec = std::string(kServerName) + "," + cert + "," + key;
-        if (prog_set_opt(&app.program, 's', address) != 0 ||
-            prog_set_opt(&app.program, 'c', spec.c_str()) != 0 ||
-            add_alpn(kAlpn) != 0 || prog_prep(&app.program) != 0)
+        if (prog_set_opt(&app.program, 's', address) != 0) {
+            std::cerr << "probe initialization failed: server service port\n" << std::flush;
             return 2;
+        }
+        if (prog_set_opt(&app.program, 'c', spec.c_str()) != 0) {
+            std::cerr << "probe initialization failed: server certificate/key\n" << std::flush;
+            return 2;
+        }
+        if (add_alpn(kAlpn) != 0) {
+            std::cerr << "probe initialization failed: server ALPN\n" << std::flush;
+            return 2;
+        }
+        if (prog_prep(&app.program) != 0) {
+            std::cerr << "probe initialization failed: server prog_prep\n" << std::flush;
+            return 2;
+        }
         auto* ssl = static_cast<SSL_CTX*>(lookup_cert(
             app.program.prog_certs, nullptr, kServerName));
-        if (!ssl)
+        if (!ssl) {
+            std::cerr << "probe initialization failed: server certificate lookup\n" << std::flush;
             return 2;
+        }
         SSL_CTX_set_early_data_enabled(ssl, 0);
     } else {
-        if (prog_set_opt(&app.program, 's', address) != 0 ||
-            prog_set_opt(&app.program, 'H', kServerName) != 0 ||
-            prog_prep(&app.program) != 0)
+        if (prog_set_opt(&app.program, 's', address) != 0) {
+            std::cerr << "probe initialization failed: client service port\n" << std::flush;
             return 2;
+        }
+        if (prog_set_opt(&app.program, 'H', kServerName) != 0) {
+            std::cerr << "probe initialization failed: client hostname\n" << std::flush;
+            return 2;
+        }
+        if (prog_prep(&app.program) != 0) {
+            std::cerr << "probe initialization failed: client prog_prep\n" << std::flush;
+            return 2;
+        }
         FILE* file = std::fopen(trust, "rb");
-        if (!file)
+        if (!file) {
+            std::cerr << "probe initialization failed: opening pinned certificate\n" << std::flush;
             return 2;
+        }
         app.pinnedCertificate = PEM_read_X509(file, nullptr, nullptr, nullptr);
         std::fclose(file);
-        if (!app.pinnedCertificate)
+        if (!app.pinnedCertificate) {
+            std::cerr << "probe initialization failed: parsing pinned certificate\n" << std::flush;
             return 2;
+        }
         SSL_CTX_set_verify(app.program.prog_ssl_ctx, SSL_VERIFY_PEER,
                            verifyPinnedPeer);
         SSL_CTX_set_early_data_enabled(app.program.prog_ssl_ctx, 0);
