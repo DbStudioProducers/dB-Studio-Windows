@@ -143,6 +143,8 @@ lsquic_conn_ctx_t* onNewConnection(void* opaque, lsquic_conn_t* conn) {
         // LSQUIC creates client streams from this callback reliably. The stream
         // remains write-disabled until onHandshakeDone verifies the pinned peer.
         lsquic_conn_make_stream(conn);
+        std::cerr << "Client requested control stream; pending="
+                  << lsquic_conn_n_pending_streams(conn) << "\n";
     }
     return context;
 }
@@ -167,6 +169,8 @@ lsquic_stream_ctx_t* onNewStream(void* opaque, lsquic_stream_t* stream) {
     context->stream = stream;
     context->server = app->server;
     lsquic_stream_set_ctx(stream, context);
+    std::cerr << (app->server ? "Server" : "Client")
+              << " control stream callback\n";
     if (app->server) {
         lsquic_stream_wantread(stream, 1);
     } else {
@@ -192,6 +196,8 @@ void onStreamRead(lsquic_stream_t* stream, lsquic_stream_ctx_t* context) {
         return;
     std::array<char, 64> chunk{};
     const auto count = lsquic_stream_read(stream, chunk.data(), chunk.size());
+    std::cerr << (context->server ? "Server" : "Client")
+              << " stream read callback bytes=" << count << "\n";
     if (count == 0)
         return;
     if (count < 0 || context->input.size() + static_cast<std::size_t>(count) > kMaxControl) {
@@ -246,6 +252,9 @@ void onStreamWrite(lsquic_stream_t* stream, lsquic_stream_ctx_t* context) {
     if (!connection)
         return;
     if (context->outputOffset < context->output.size()) {
+        std::cerr << (context->server ? "Server" : "Client")
+                  << " stream write callback remaining="
+                  << (context->output.size() - context->outputOffset) << "\n";
         const auto remaining = context->output.size() - context->outputOffset;
         const auto written = lsquic_stream_write(stream,
             context->output.data() + context->outputOffset, remaining);
@@ -315,8 +324,15 @@ void onHandshakeDone(lsquic_conn_t* conn, enum lsquic_hsk_status status) {
         return;
     }
     context->peerVerified = true;
-    if (context->controlStream)
+    const auto pending = lsquic_conn_n_pending_streams(conn);
+    std::cerr << "Client peer verified; controlStream="
+              << (context->controlStream != nullptr) << ", pending=" << pending << "\n";
+    if (context->controlStream) {
         lsquic_stream_wantwrite(context->controlStream, 1);
+    } else if (pending == 0) {
+        std::cerr << "Client requesting fallback control stream after handshake\n";
+        lsquic_conn_make_stream(conn);
+    }
 }
 
 const lsquic_stream_if streamInterface = {
