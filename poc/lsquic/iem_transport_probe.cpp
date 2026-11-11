@@ -382,11 +382,15 @@ int run(bool server, const char* address, const char* cert, const char* key,
     }
 
     if (server) {
-        if (prog_run(&app.program) != 0)
+        const int runResult = prog_run(&app.program);
+        std::cerr << "probe server event loop returned: " << runResult << "\n" << std::flush;
+        if (runResult != 0)
             app.exitCode = 1;
     } else {
-        if (prog_connect(&app.program, nullptr, 0) != 0)
+        if (prog_connect(&app.program, nullptr, 0) != 0) {
+            std::cerr << "probe client connect setup failed\n" << std::flush;
             return 2;
+        }
         prog_run(&app.program);
     }
     prog_cleanup(&app.program);

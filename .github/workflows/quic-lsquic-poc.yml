@@ -139,6 +139,7 @@ jobs:
             $server = Start-Process -FilePath $probe -ArgumentList @("server", "127.0.0.1:24567", $certPath, $keyPath) -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
             Start-Sleep -Seconds 2
             if ($server.HasExited) {
+              Write-Host "IEM QUIC test server exit code: $($server.ExitCode)"
               Get-Content $stdout, $stderr
               throw "IEM QUIC test server exited before accepting a connection"
             }
