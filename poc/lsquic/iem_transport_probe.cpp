@@ -231,6 +231,9 @@ void onStreamRead(lsquic_stream_t* stream, lsquic_stream_ctx_t* context) {
             finishClient(lsquic_stream_conn(stream), 1);
             return;
         }
+        // The shared DATAGRAM writer enforces this flag on both roles. Set it
+        // only after the server has accepted the device proof and authorized AUX 0.
+        connection->authorized = true;
         std::array<std::uint8_t, DbStudioNet::kMaxDatagramBytes> packet{};
         std::size_t packetSize = 0;
         if (!connection->gate.maySend(DbStudioSecurity::DataClass::audioDatagram, false) ||
