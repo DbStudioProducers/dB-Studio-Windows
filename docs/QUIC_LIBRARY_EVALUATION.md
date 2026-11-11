@@ -42,7 +42,7 @@ Se LSQUIC não puder ser compilada/operada no iOS, avaliar Apple Network.framewo
 
 ## Plano de POC revisado
 1. Fixar versão/tag/commit e hashes de LSQUIC, BoringSSL, zlib e submódulos; gerar SBOM.
-2. Compilar LSQUIC no Windows x64 e executar testes unitários upstream.
+2. Fixar LSQUIC v4.11.1 no commit `2f4cd42f27cf8e9b0a0f43e376a618ec8ce4a7ff`, BoringSSL `0.20250807.0` e vcpkg no commit `e54ef0fcc9a82033a61e51002552a910a5d57282`; compilar LSQUIC no Windows x64 e executar testes unitários upstream.
 3. Criar cliente e servidor mínimos separados, sem integração no aplicativo principal.
 4. Provar QUIC v1, TLS 1.3, ALPN próprio, RFC 9221 DATAGRAM bidirecional e streams confiáveis.
 5. Provar falha fechada para certificado inválido, expirado, hostname/SNI errado, servidor impostor e identidade de dispositivo não autorizada.
@@ -64,7 +64,7 @@ Se LSQUIC não puder ser compilada/operada no iOS, avaliar Apple Network.framewo
 
 ## Fontes primárias
 - XQUIC v1.9.8 Platforms: https://github.com/alibaba/xquic/blob/v1.9.8/docs/Platforms.md
-- LSQUIC docs 4.11.1: https://lsquic.readthedocs.io/en/latest/
+- LSQUIC v4.11.1 release: https://github.com/litespeedtech/lsquic/releases/tag/v4.11.1\n- LSQUIC v4.11.1 commit: https://github.com/litespeedtech/lsquic/commit/2f4cd42f27cf8e9b0a0f43e376a618ec8ce4a7ff\n- LSQUIC docs 4.11.1: https://lsquic.readthedocs.io/en/latest/
 - LSQUIC README e plataformas (inclui iOS ARM): https://github.com/litespeedtech/lsquic/blob/v4.11.1/README.md\n- LSQUIC Getting Started: https://lsquic.readthedocs.io/en/latest/gettingstarted.html
 - LSQUIC API/datagrams: https://lsquic.readthedocs.io/en/latest/apiref.html
 - TQUIC platforms/build: https://tquic.net/docs/getting_started/installation/
