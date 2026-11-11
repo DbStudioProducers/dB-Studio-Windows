@@ -114,6 +114,9 @@ jobs:
         run: |
           cmake --build build/lsquic --config Debug --target ALL_BUILD --parallel 2
           if ($LASTEXITCODE -ne 0) { throw "LSQUIC ALL_BUILD failed with exit code $LASTEXITCODE" }
+          $probeRuntime = "build/lsquic/bin/Debug"
+          Get-ChildItem (Join-Path $env:VCPKG_ROOT "installed/x64-windows/bin") -Filter "*.dll" |
+            Copy-Item -Destination $probeRuntime -Force
           cmake --build build/lsquic --config Debug --target RUN_TESTS --parallel 2
           if ($LASTEXITCODE -ne 0) { throw "LSQUIC RUN_TESTS failed with exit code $LASTEXITCODE" }
 
