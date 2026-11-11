@@ -49,8 +49,8 @@ jobs:
         shell: pwsh
         run: |
           $zlibInclude = Join-Path $env:VCPKG_ROOT "installed/x64-windows-static/include/zlib.h"
-          $zlibDebug = Join-Path $env:VCPKG_ROOT "installed/x64-windows-static/debug/lib/zd.lib"
-          $zlibRelease = Join-Path $env:VCPKG_ROOT "installed/x64-windows-static/lib/z.lib"
+          $zlibDebug = Join-Path $env:VCPKG_ROOT "installed/x64-windows-static/debug/lib/zsd.lib"
+          $zlibRelease = Join-Path $env:VCPKG_ROOT "installed/x64-windows-static/lib/zs.lib"
           if (!(Test-Path $zlibInclude) -or !(Test-Path $zlibDebug) -or !(Test-Path $zlibRelease)) {
             Get-ChildItem (Join-Path $env:VCPKG_ROOT "installed/x64-windows-static") -Recurse -Filter "*.lib" | Select-Object -ExpandProperty FullName
             throw "Expected zlib header and Debug/Release static libraries were not found"
