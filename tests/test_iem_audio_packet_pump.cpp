@@ -52,14 +52,19 @@ int main() {
     DbStudioNet::IemAudioPacketPump pump(sessionId, 48000);
     DbStudioSecurity::TransportSecurityGate gate;
 
-    CHECK(pump.pumpOne(queue, sink, gate) == DbStudioNet::AudioPumpResult::noBlock);
+    CHECK(pump.pumpOne(queue, sink, gate, 0xffffu) == DbStudioNet::AudioPumpResult::noBlock);
     fillAndPush(queue, source, 16, 4096);
-    CHECK(pump.pumpOne(queue, sink, gate) == DbStudioNet::AudioPumpResult::denied);
+    CHECK(pump.pumpOne(queue, sink, gate, 0xffffu) == DbStudioNet::AudioPumpResult::denied);
     CHECK(sink.packets.empty()); // unauthorized audio is consumed and discarded
 
     authorize(gate);
+    Queue noAUXQueue;
+    fillAndPush(noAUXQueue, source, 16, 6144);
+    CHECK(pump.pumpOne(noAUXQueue, sink, gate, 0) == DbStudioNet::AudioPumpResult::denied);
+    CHECK(sink.packets.empty()); // no server-authorized AUX means no IEM payloads
+
     fillAndPush(queue, source, 256, 8192);
-    CHECK(pump.pumpOne(queue, sink, gate) == DbStudioNet::AudioPumpResult::sent);
+    CHECK(pump.pumpOne(queue, sink, gate, 0xffffu) == DbStudioNet::AudioPumpResult::sent);
     CHECK(sink.packets.size() == 32); // two <=128-frame datagrams for each AUX
 
     for (std::size_t i = 0; i < sink.packets.size(); ++i) {
@@ -80,12 +85,29 @@ int main() {
         CHECK(std::abs(right[0] - static_cast<float>((channel + 2) * 0.01 + sourceFrame * 0.0001)) < 1.0e-6f);
     }
 
+    Queue restrictedQueue;
+    DatagramCapture restrictedSink;
+    DbStudioNet::IemAudioPacketPump restrictedPump(sessionId, 48000);
+    fillAndPush(restrictedQueue, source, 256, 12288);
+    CHECK(restrictedPump.pumpOne(restrictedQueue, restrictedSink, gate,
+                                 std::uint16_t{1} << 7)
+          == DbStudioNet::AudioPumpResult::sent);
+    CHECK(restrictedSink.packets.size() == 2);
+    for (const auto& packet : restrictedSink.packets) {
+        DbStudioNet::PacketMetadata metadata{};
+        std::array<float, DbStudioNet::kMaxFramesPerPacket> left{}, right{};
+        CHECK(DbStudioNet::decodeAudioPacket(packet.data(), packet.size(), metadata,
+                                               left.data(), right.data(), left.size())
+              == DbStudioNet::PacketResult::success);
+        CHECK(metadata.streamId == 7); // an AUX grant cannot leak any other bus
+    }
+
     Queue failingQueue;
     DatagramCapture failingSink;
     failingSink.failAfter = 2;
     DbStudioNet::IemAudioPacketPump failingPump(sessionId, 48000);
     fillAndPush(failingQueue, source, 16, 16384);
-    CHECK(failingPump.pumpOne(failingQueue, failingSink, gate)
+    CHECK(failingPump.pumpOne(failingQueue, failingSink, gate, 0xffffu)
           == DbStudioNet::AudioPumpResult::sinkFailure);
     CHECK(failingSink.packets.size() == 2);
     Queue::BlockView view{};

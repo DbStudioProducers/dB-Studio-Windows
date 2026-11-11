@@ -28,7 +28,8 @@ public:
 
     template <typename BlockSource, typename DatagramSink>
     AudioPumpResult pumpOne(BlockSource& source, DatagramSink& sink,
-                            const DbStudioSecurity::TransportSecurityGate& gate) noexcept {
+                            const DbStudioSecurity::TransportSecurityGate& gate,
+                            std::uint16_t authorizedStreamMask) noexcept {
         static_assert(BlockSource::kChannels == 32,
                       "IEM transport expects 16 stereo AUX buses");
         typename BlockSource::BlockView block{};
@@ -40,7 +41,8 @@ public:
             ~ReleaseOnExit() { source.release(); }
         } release{source};
 
-        if (!gate.maySend(DbStudioSecurity::DataClass::audioDatagram, false))
+        if (authorizedStreamMask == 0 ||
+            !gate.maySend(DbStudioSecurity::DataClass::audioDatagram, false))
             return AudioPumpResult::denied;
         if (block.samples == nullptr || block.frames <= 0 ||
             static_cast<std::size_t>(block.frames) > BlockSource::kMaxFrames)
@@ -48,6 +50,8 @@ public:
 
         std::array<std::uint8_t, kMaxDatagramBytes> packet{};
         for (std::uint8_t streamId = 0; streamId < 16; ++streamId) {
+            if ((authorizedStreamMask & (std::uint16_t{1} << streamId)) == 0)
+                continue;
             for (std::size_t offset = 0; offset < static_cast<std::size_t>(block.frames);) {
                 std::size_t packetSize = 0;
                 const auto result = encoder_.encodeBlockPacket(

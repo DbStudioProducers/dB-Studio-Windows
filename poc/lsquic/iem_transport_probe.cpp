@@ -1,6 +1,7 @@
 // Isolated Windows QUIC/TLS proof for the IEM audio payload.
 // The embedded pairing token and generated certificate are test-only; this is not a production credential flow.
 #include <array>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstdint>
@@ -26,17 +27,27 @@ extern "C" {
 #include <openssl/x509.h>
 #include <openssl/ssl.h>
 #include "AudioPacketCodec.h"
+#include "IemAudioPacketPump.h"
+#include "SpscAudioBlockQueue.h"
 #include "TransportSecurityPolicy.h"
 
 struct App;
 struct lsquic_conn_ctx {
+    struct Datagram {
+        std::array<std::uint8_t, DbStudioNet::kMaxDatagramBytes> bytes{};
+        std::size_t size = 0;
+    };
     App* app = nullptr;
     DbStudioSecurity::TransportSecurityGate gate{};
     bool authorized = false;
     bool peerVerified = false;
     lsquic_stream_t* controlStream = nullptr;
-    std::array<std::uint8_t, DbStudioNet::kMaxDatagramBytes> pending{};
-    std::size_t pendingSize = 0;
+    std::array<Datagram, 32> outgoing{};
+    std::size_t outgoingRead = 0;
+    std::size_t outgoingWrite = 0;
+    std::size_t outgoingCount = 0;
+    std::size_t receivedDatagrams = 0;
+    std::array<bool, 2> receivedPackets{};
 };
 struct lsquic_stream_ctx {
     lsquic_stream_t* stream = nullptr;
@@ -91,41 +102,76 @@ void finishClient(lsquic_conn_t* conn, int result) {
     lsquic_conn_close(conn);
 }
 
-bool makeAudioPacket(std::array<std::uint8_t, DbStudioNet::kMaxDatagramBytes>& bytes,
-                     std::size_t& size) {
-    using namespace DbStudioNet;
-    PacketMetadata metadata{};
-    for (std::size_t i = 0; i < metadata.sessionId.size(); ++i)
-        metadata.sessionId[i] = static_cast<std::uint8_t>(i + 1);
-    metadata.streamId = 0;
-    metadata.sequence = 7;
-    metadata.timestampFrames = 4096;
-    metadata.sampleRate = 48000;
-    metadata.frames = 16;
-    std::array<float, 16> left{}, right{};
-    for (std::size_t i = 0; i < left.size(); ++i) {
-        left[i] = 0.01f * static_cast<float>(i + 1);
-        right[i] = -left[i];
+using ProbeAudioQueue = DbStudioAudio::SpscAudioBlockQueue<32, 256, 3>;
+
+struct ProbeDatagramSink {
+    lsquic_conn_ctx_t& connection;
+
+    bool sendDatagram(const std::uint8_t* bytes, std::size_t size) noexcept {
+        if (!bytes || size == 0 || size > DbStudioNet::kMaxDatagramBytes ||
+            connection.outgoingCount >= connection.outgoing.size())
+            return false;
+        auto& slot = connection.outgoing[connection.outgoingWrite];
+        std::memcpy(slot.bytes.data(), bytes, size);
+        slot.size = size;
+        connection.outgoingWrite = (connection.outgoingWrite + 1) % connection.outgoing.size();
+        ++connection.outgoingCount;
+        return true;
     }
-    return encodeAudioPacket(metadata, left.data(), right.data(), bytes.data(),
-                             bytes.size(), size) == PacketResult::success;
+};
+
+bool queueTestAudio(ProbeAudioQueue& queue) {
+    std::array<std::array<float, 256>, 32> channels{};
+    std::array<const float*, 32> pointers{};
+    for (std::size_t channel = 0; channel < channels.size(); ++channel) {
+        pointers[channel] = channels[channel].data();
+        for (std::size_t frame = 0; frame < channels[channel].size(); ++frame)
+            channels[channel][frame] = static_cast<float>(
+                (channel + 1) * 0.01 + frame * 0.0001);
+    }
+    return queue.tryPush(pointers.data(), 256, 4096);
 }
 
-bool validAudioPacket(const std::uint8_t* data, std::size_t size) {
+bool enqueueTestAudio(lsquic_conn_ctx_t& connection) {
+    if (!connection.authorized)
+        return false;
+    ProbeAudioQueue queue;
+    if (!queueTestAudio(queue))
+        return false;
+    std::array<std::uint8_t, 16> sessionId{};
+    sessionId[0] = 0x42;
+    DbStudioNet::IemAudioPacketPump pump(sessionId, 48000);
+    ProbeDatagramSink sink{connection};
+    const auto result = pump.pumpOne(queue, sink, connection.gate);
+    return result == DbStudioNet::AudioPumpResult::sent &&
+           connection.outgoingCount == 2;
+}
+
+bool validAudioDatagram(const std::uint8_t* data, std::size_t size,
+                        std::size_t& packetIndex) {
     using namespace DbStudioNet;
     PacketMetadata metadata{};
     std::array<float, kMaxFramesPerPacket> left{}, right{};
     if (decodeAudioPacket(data, size, metadata, left.data(), right.data(), left.size())
             != PacketResult::success)
         return false;
-    if (metadata.streamId != 0 || metadata.sequence != 7 ||
-        metadata.timestampFrames != 4096 || metadata.sampleRate != 48000 ||
-        metadata.frames != 16)
+    if (metadata.streamId != 0 || metadata.sequence >= 2)
         return false;
-    for (std::size_t i = 0; i < metadata.frames; ++i)
-        if (left[i] != 0.01f * static_cast<float>(i + 1) ||
-            right[i] != -left[i])
+    const auto packetOffset = static_cast<std::size_t>(metadata.sequence);
+    packetIndex = packetOffset;
+    constexpr std::size_t channel = 0;
+    const auto sourceFrame = packetOffset * kMaxFramesPerPacket;
+    if (metadata.sessionId[0] != 0x42 || metadata.streamId != stream ||
+        metadata.sequence != packetOffset ||
+        metadata.timestampFrames != 4096 + sourceFrame ||
+        metadata.sampleRate != 48000 || metadata.frames != kMaxFramesPerPacket)
+        return false;
+    for (std::size_t frame = 0; frame < metadata.frames; ++frame) {
+        const auto source = sourceFrame + frame;
+        if (std::abs(left[frame] - static_cast<float>((channel + 1) * 0.01 + source * 0.0001)) > 1.0e-6f ||
+            std::abs(right[frame] - static_cast<float>((channel + 2) * 0.01 + source * 0.0001)) > 1.0e-6f)
             return false;
+    }
     return true;
 }
 
@@ -136,6 +182,7 @@ lsquic_conn_ctx_t* onNewConnection(void* opaque, lsquic_conn_t* conn) {
     lsquic_conn_set_ctx(conn, context);
     if (app->server) {
         // Server TLS is complete here. Device identity still requires the authenticated control stream.
+        context->gate.beginHandshake();
         std::cout << "TLS 1.3 QUIC peer connected; awaiting device pairing proof\n";
     } else {
         std::cout << "Client QUIC connection created\n";
@@ -217,6 +264,12 @@ void onStreamRead(lsquic_stream_t* stream, lsquic_stream_ctx_t* context) {
             lsquic_conn_close(lsquic_stream_conn(stream));
             return;
         }
+        if (!connection->gate.markPeerVerified(true) ||
+            !connection->gate.markDeviceAuthenticated(true) ||
+            !connection->gate.markAuthorized(true)) {
+            lsquic_conn_close(lsquic_stream_conn(stream));
+            return;
+        }
         connection->authorized = true;
         context->output = kAuthReply;
         lsquic_stream_wantread(stream, 0);
@@ -234,15 +287,10 @@ void onStreamRead(lsquic_stream_t* stream, lsquic_stream_ctx_t* context) {
         // The shared DATAGRAM writer enforces this flag on both roles. Set it
         // only after the server has accepted the device proof and authorized AUX 0.
         connection->authorized = true;
-        std::array<std::uint8_t, DbStudioNet::kMaxDatagramBytes> packet{};
-        std::size_t packetSize = 0;
-        if (!connection->gate.maySend(DbStudioSecurity::DataClass::audioDatagram, false) ||
-            !makeAudioPacket(packet, packetSize)) {
+        if (!enqueueTestAudio(*connection)) {
             finishClient(lsquic_stream_conn(stream), 1);
             return;
         }
-        connection->pending = packet;
-        connection->pendingSize = packetSize;
         lsquic_conn_want_datagram_write(lsquic_stream_conn(stream), 1);
     }
 }
@@ -281,13 +329,18 @@ void onStreamClose(lsquic_stream_t*, lsquic_stream_ctx_t* context) {
 
 ssize_t onDatagramWrite(lsquic_conn_t* conn, void* buffer, size_t capacity) {
     auto* context = static_cast<lsquic_conn_ctx_t*>(lsquic_conn_get_ctx(conn));
-    if (!context || !context->authorized || context->pendingSize == 0 ||
-        context->pendingSize > capacity)
+    if (!context || !context->authorized || context->outgoingCount == 0 ||
+        !context->gate.maySend(DbStudioSecurity::DataClass::audioDatagram, false))
         return -1;
-    std::memcpy(buffer, context->pending.data(), context->pendingSize);
-    const auto size = static_cast<ssize_t>(context->pendingSize);
-    context->pendingSize = 0;
-    lsquic_conn_want_datagram_write(conn, 0);
+    auto& packet = context->outgoing[context->outgoingRead];
+    if (packet.size == 0 || packet.size > capacity)
+        return -1;
+    std::memcpy(buffer, packet.bytes.data(), packet.size);
+    const auto size = static_cast<ssize_t>(packet.size);
+    packet.size = 0;
+    context->outgoingRead = (context->outgoingRead + 1) % context->outgoing.size();
+    --context->outgoingCount;
+    lsquic_conn_want_datagram_write(conn, context->outgoingCount != 0);
     return size;
 }
 
@@ -297,21 +350,33 @@ void onDatagram(lsquic_conn_t* conn, const void* buffer, size_t size) {
         return;
     const auto* bytes = static_cast<const std::uint8_t*>(buffer);
     if (context->app->server) {
-        if (!context->authorized || !validAudioPacket(bytes, size) ||
-            size > context->pending.size()) {
+        std::size_t packetIndex = 0;
+        if (!context->authorized ||
+            !context->gate.maySend(DbStudioSecurity::DataClass::audioDatagram, false) ||
+            !validAudioDatagram(bytes, size, packetIndex)) {
             std::cerr << "Rejected invalid or unauthorized audio datagram\n";
             lsquic_conn_close(conn);
             return;
         }
-        std::memcpy(context->pending.data(), bytes, size);
-        context->pendingSize = size;
+        ProbeDatagramSink sink{*context};
+        if (!sink.sendDatagram(bytes, size)) {
+            std::cerr << "QUIC echo queue capacity exceeded\n";
+            lsquic_conn_close(conn);
+            return;
+        }
         lsquic_conn_want_datagram_write(conn, 1);
     } else {
-        if (!validAudioPacket(bytes, size)) {
+        std::size_t packetIndex = 0;
+        if (!validAudioDatagram(bytes, size, packetIndex)) {
             finishClient(conn, 1);
             return;
         }
-        finishClient(conn, 0);
+        if (!context->receivedPackets[packetIndex]) {
+            context->receivedPackets[packetIndex] = true;
+            ++context->receivedDatagrams;
+        }
+        if (context->receivedDatagrams == context->receivedPackets.size())
+            finishClient(conn, 0);
     }
 }
 
@@ -461,3 +526,4 @@ int main(int argc, char** argv) {
               << " argc=" << argc << "\n" << std::flush;
     return 2;
 }
+
