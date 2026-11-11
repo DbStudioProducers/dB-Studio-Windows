@@ -7,17 +7,18 @@
 #include <cstring>
 #include <iostream>
 #include <string>
+#include <string_view>
 #include <vector>
 #include <winsock2.h>
-#include <openssl/pem.h>
-#include <openssl/x509.h>
-#include <openssl/ssl.h>
 #include <sys/queue.h>
 #include "lsquic.h"
-#include "prog.h"
 #include "../src/liblsquic/lsquic_hash.h"
 #include "test_common.h"
 #include "test_cert.h"
+#include "prog.h"
+#include <openssl/pem.h>
+#include <openssl/x509.h>
+#include <openssl/ssl.h>
 #include "AudioPacketCodec.h"
 #include "TransportSecurityPolicy.h"
 
@@ -341,9 +342,8 @@ int run(bool server, const char* address, const char* cert, const char* key,
         std::fclose(file);
         if (!app.pinnedCertificate)
             return 2;
-        if (SSL_CTX_set_verify(app.program.prog_ssl_ctx, SSL_VERIFY_PEER,
-                               verifyPinnedPeer) != 1)
-            return 2;
+        SSL_CTX_set_verify(app.program.prog_ssl_ctx, SSL_VERIFY_PEER,
+                           verifyPinnedPeer);
         SSL_CTX_set_early_data_enabled(app.program.prog_ssl_ctx, 0);
     }
 

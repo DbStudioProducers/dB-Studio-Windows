@@ -83,6 +83,8 @@ jobs:
           $probeCmake = @'
           add_executable(iem_transport_probe iem_transport_probe.cpp prog.c test_common.c test_cert.c)
           target_include_directories(iem_transport_probe PRIVATE "${CMAKE_SOURCE_DIR}/../../Source")
+          set_property(TARGET iem_transport_probe PROPERTY CXX_STANDARD 17)
+          set_property(TARGET iem_transport_probe PROPERTY CXX_STANDARD_REQUIRED ON)
           target_link_libraries(iem_transport_probe ${LIBS})
           '@
           Add-Content -Path "third_party/lsquic/bin/CMakeLists.txt" -Value $probeCmake
