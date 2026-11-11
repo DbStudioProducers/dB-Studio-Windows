@@ -37,8 +37,12 @@ class NativeArchitectureChecks(unittest.TestCase):
         self.assertIn('std::clamp(r, -0.98f, 0.98f)', self.renderer)
     def test_network_handoff_is_bounded_and_non_blocking(self):
         self.assertIn('SpscAudioBlockQueue<kOutputChannels, kMaxBlockSize, 3>', self.engine_h)
-        self.assertIn('networkQueue_.tryPush(networkChannels.data(), samples)', self.engine_cpp)
-        self.assertIn('networkQueue_.tryAcquire(view)', self.engine_cpp)
+        self.assertIn('networkQueue_.tryPush(networkChannels.data(), samples, blockTimestampFrames)', self.engine_cpp)
+        self.assertIn('networkQueue_.tryAcquire(queued)', self.engine_cpp)
+        self.assertIn('audioFrameCursor_ += static_cast<std::uint64_t>(samples)', self.engine_cpp)
+        self.assertIn('IemAudioPacketPump.h', self.cmake)
+        self.assertIn('add_executable(dBStudioIemPacketPumpTests tests/test_iem_audio_packet_pump.cpp)', self.cmake)
+        self.assertIn('add_test(NAME IemAudioPacketPump COMMAND dBStudioIemPacketPumpTests)', self.cmake)
         self.assertIn('SpscAudioQueue', self.cmake)
         workflow = (ROOT / '.github' / 'workflows' / 'windows-build.yml').read_text(encoding='utf-8')
         self.assertIn('dBStudioQueueTests', workflow)
@@ -66,6 +70,7 @@ class NativeArchitectureChecks(unittest.TestCase):
         self.assertIn('add_test(NAME AudioPacketCodec COMMAND dBStudioPacketTests)', self.cmake)
         workflow = (ROOT / '.github' / 'workflows' / 'windows-build.yml').read_text(encoding='utf-8')
         self.assertIn('dBStudioPacketTests', workflow)
+        self.assertIn('dBStudioIemPacketPumpTests', workflow)
     def test_transport_security_policy_has_dedicated_ctest_and_is_not_misrepresented_as_tls(self):
         policy = (ROOT / 'Source' / 'TransportSecurityPolicy.h').read_text(encoding='utf-8')
         self.assertIn('This class performs NO TLS', policy)
@@ -84,3 +89,4 @@ class NativeArchitectureChecks(unittest.TestCase):
         self.assertIn('does not claim these features are implemented yet', spec.lower())
 if __name__ == '__main__':
     unittest.main(verbosity=2)
+

@@ -1,6 +1,7 @@
 #include "AudioEngine.h"
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 AudioEngine::AudioEngine() {
     for (auto& peak : inputPeaks_) peak.store(0.0f);
@@ -32,6 +33,7 @@ void AudioEngine::shutdown() {
 }
 
 void AudioEngine::audioDeviceAboutToStart(juce::AudioIODevice* device) {
+    audioFrameCursor_ = 0;
     if (device != nullptr) {
         sampleRate_.store(device->getCurrentSampleRate());
         blockSize_.store(device->getCurrentBufferSizeSamples());
@@ -48,6 +50,10 @@ void AudioEngine::audioDeviceStopped() {
 void AudioEngine::audioDeviceIOCallbackWithContext(const float* const* inputs, int numInputs,
                                         float* const* outputs, int numOutputs, int samples,
                                         const juce::AudioIODeviceCallbackContext&) {
+    const auto blockTimestampFrames = audioFrameCursor_;
+    if (samples > 0 && audioFrameCursor_ <=
+            std::numeric_limits<std::uint64_t>::max() - static_cast<std::uint64_t>(samples))
+        audioFrameCursor_ += static_cast<std::uint64_t>(samples);
     // Physical outputs are deliberately silent in this foundation. They are
     // not the AUX destinations; all 16 stereo mixes are rendered below.
     for (int out = 0; out < numOutputs; ++out)
@@ -108,7 +114,7 @@ void AudioEngine::audioDeviceIOCallbackWithContext(const float* const* inputs, i
     std::array<const float*, kOutputChannels> networkChannels{};
     for (int bus = 0; bus < kOutputChannels; ++bus)
         networkChannels[static_cast<size_t>(bus)] = mixBusBuffers_[static_cast<size_t>(bus)].data();
-    networkQueue_.tryPush(networkChannels.data(), samples);
+    networkQueue_.tryPush(networkChannels.data(), samples, blockTimestampFrames);
 
     for (int channel = 0; channel < kInputChannels; ++channel)
         inputPeaks_[static_cast<size_t>(channel)].store(peaks[static_cast<size_t>(channel)]);
@@ -118,11 +124,17 @@ void AudioEngine::audioDeviceIOCallbackWithContext(const float* const* inputs, i
 
 
 bool AudioEngine::tryAcquireNetworkBlock(const float*& samples, int& frames, unsigned long long& sequence) noexcept {
-    NetworkQueue::BlockView view{};
-    if (!networkQueue_.tryAcquire(view)) return false;
+    BlockView view{};
+    if (!tryAcquire(view)) return false;
     samples = view.samples;
     frames = view.frames;
     sequence = view.sequence;
+    return true;
+}
+bool AudioEngine::tryAcquire(BlockView& view) noexcept {
+    NetworkQueue::BlockView queued{};
+    if (!networkQueue_.tryAcquire(queued)) return false;
+    view = {queued.samples, queued.frames, queued.sequence, queued.timestampFrames};
     return true;
 }
 void AudioEngine::releaseNetworkBlock() noexcept {
@@ -172,3 +184,4 @@ bool AudioEngine::mixInputSolo(int mix, int input) const noexcept {
     return mix >= 0 && mix < kMixes && input >= 0 && input < kInputChannels
         ? inputSolos_[static_cast<size_t>(mix)][static_cast<size_t>(input)].load() : false;
 }
+

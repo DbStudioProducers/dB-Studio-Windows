@@ -35,7 +35,7 @@ jobs:
       - name: Configure JUCE native application and core tests
         run: cmake -S . -B build -A x64 -DBUILD_TESTING=ON
       - name: Build core verification tests
-        run: cmake --build build --config Release --target dBStudioCoreTests dBStudioMixTests dBStudioQueueTests dBStudioAuthorizationTests dBStudioPacketTests dBStudioTransportSecurityTests
+        run: cmake --build build --config Release --target dBStudioCoreTests dBStudioMixTests dBStudioQueueTests dBStudioAuthorizationTests dBStudioPacketTests dBStudioIemPacketPumpTests dBStudioTransportSecurityTests
       - name: Run core verification tests before application compilation
         run: ctest --test-dir build -C Release --output-on-failure
       - name: Compile native application
@@ -47,3 +47,4 @@ jobs:
           path: build/dBStudio_artefacts/Release/
           if-no-files-found: error
           retention-days: 30
+

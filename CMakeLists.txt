@@ -11,6 +11,7 @@ if(BUILD_TESTING)
   add_executable(dBStudioQueueTests tests/test_spsc_audio_queue.cpp)
   add_executable(dBStudioAuthorizationTests tests/test_session_authorization.cpp)
   add_executable(dBStudioPacketTests tests/test_audio_packet_codec.cpp)
+  add_executable(dBStudioIemPacketPumpTests tests/test_iem_audio_packet_pump.cpp)
   add_executable(dBStudioTransportSecurityTests tests/test_transport_security_policy.cpp)
   target_link_libraries(dBStudioQueueTests PRIVATE Threads::Threads)
   add_test(NAME AuxAssignmentRegistry COMMAND dBStudioCoreTests)
@@ -18,6 +19,7 @@ if(BUILD_TESTING)
   add_test(NAME SpscAudioQueue COMMAND dBStudioQueueTests)
   add_test(NAME SessionAuthorization COMMAND dBStudioAuthorizationTests)
   add_test(NAME AudioPacketCodec COMMAND dBStudioPacketTests)
+  add_test(NAME IemAudioPacketPump COMMAND dBStudioIemPacketPumpTests)
   add_test(NAME TransportSecurityPolicy COMMAND dBStudioTransportSecurityTests)
 endif()
 include(FetchContent)
@@ -28,6 +30,7 @@ target_sources(dBStudio PRIVATE
   Source/Main.cpp Source/AudioEngine.cpp Source/AudioEngine.h
   Source/AuxAssignmentRegistry.h Source/MixRenderer.h Source/SpscAudioBlockQueue.h
   Source/AudioPacketCodec.h Source/TransportSecurityPolicy.h
+  Source/IemAudioPacketPump.h
   Source/MainComponent.cpp Source/MainComponent.h)
 target_compile_definitions(dBStudio PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0
   JUCE_APPLICATION_NAME_STRING="$<TARGET_PROPERTY:dBStudio,JUCE_PRODUCT_NAME>"
@@ -35,3 +38,4 @@ target_compile_definitions(dBStudio PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0
 target_link_libraries(dBStudio PRIVATE juce::juce_audio_utils juce::juce_audio_devices
   juce::juce_dsp juce::juce_gui_extra juce::juce_recommended_config_flags
   juce::juce_recommended_lto_flags juce::juce_recommended_warning_flags)
+

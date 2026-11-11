@@ -19,9 +19,14 @@ public:
         const float* samples = nullptr; // channel-major, MaxFrames stride
         int frames = 0;
         std::uint64_t sequence = 0;
+        std::uint64_t timestampFrames = 0;
     };
 
-    bool tryPush(const float* const* channels, int frames) noexcept {
+    static constexpr std::size_t kChannels = Channels;
+    static constexpr std::size_t kMaxFrames = MaxFrames;
+
+    bool tryPush(const float* const* channels, int frames,
+                 std::uint64_t timestampFrames = 0) noexcept {
         if (channels == nullptr || frames <= 0 || static_cast<std::size_t>(frames) > MaxFrames)
             return false;
         for (std::size_t ch = 0; ch < Channels; ++ch)
@@ -35,6 +40,7 @@ public:
         auto& block = blocks_[write % Slots];
         block.frames = frames;
         block.sequence = nextSequence_++;
+        block.timestampFrames = timestampFrames;
         for (std::size_t ch = 0; ch < Channels; ++ch) {
             std::copy_n(channels[ch], frames, block.samples.data() + ch * MaxFrames);
         }
@@ -48,7 +54,7 @@ public:
         const auto write = write_.load(std::memory_order_acquire);
         if (read == write) return false;
         const auto& block = blocks_[read % Slots];
-        view = {block.samples.data(), block.frames, block.sequence};
+        view = {block.samples.data(), block.frames, block.sequence, block.timestampFrames};
         acquired_ = true;
         return true;
     }
@@ -68,6 +74,7 @@ private:
         std::array<float, Channels * MaxFrames> samples{};
         int frames = 0;
         std::uint64_t sequence = 0;
+        std::uint64_t timestampFrames = 0;
     };
     std::array<Block, Slots> blocks_{};
     alignas(64) std::atomic<std::uint64_t> write_{0};
@@ -78,3 +85,4 @@ private:
 };
 
 } // namespace DbStudioAudio
+

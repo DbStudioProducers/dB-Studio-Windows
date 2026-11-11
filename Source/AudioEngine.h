@@ -11,6 +11,14 @@ public:
     static constexpr int kMixes = DbStudioMix::kMixes;
     static constexpr int kOutputChannels = DbStudioMix::kBuses; // Logical AUX channels: 16 stereo buses.
     static constexpr int kMaxBlockSize = DbStudioMix::kMaxFrames;
+    static constexpr std::size_t kChannels = static_cast<std::size_t>(kOutputChannels);
+    static constexpr std::size_t kMaxFrames = static_cast<std::size_t>(kMaxBlockSize);
+    struct BlockView {
+        const float* samples = nullptr;
+        int frames = 0;
+        unsigned long long sequence = 0;
+        std::uint64_t timestampFrames = 0;
+    };
 
     AudioEngine();
     ~AudioEngine() override;
@@ -40,6 +48,8 @@ public:
     int blockSize() const noexcept { return blockSize_.load(); }
     bool tryAcquireNetworkBlock(const float*& samples, int& frames, unsigned long long& sequence) noexcept;
     void releaseNetworkBlock() noexcept;
+    bool tryAcquire(BlockView& view) noexcept;
+    void release() noexcept { releaseNetworkBlock(); }
     unsigned long long droppedNetworkBlocks() const noexcept { return networkQueue_.droppedBlocks(); }
 
 private:
@@ -48,6 +58,9 @@ private:
     std::array<std::atomic<float>, kMixes> outputPeaks_{};
     std::atomic<double> sampleRate_{0.0};
     std::atomic<int> blockSize_{0};
+    // Written only by the audio callback; advances even when the bounded
+    // network queue drops a block so receivers can observe audio-time gaps.
+    std::uint64_t audioFrameCursor_ = 0;
     std::array<std::array<std::atomic<float>, kInputChannels>, kMixes> inputGains_{};
     std::array<std::array<std::atomic<float>, kInputChannels>, kMixes> inputPans_{};
     std::array<std::array<std::atomic<bool>, kInputChannels>, kMixes> inputMutes_{};
@@ -62,3 +75,4 @@ private:
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AudioEngine)
 };
+
