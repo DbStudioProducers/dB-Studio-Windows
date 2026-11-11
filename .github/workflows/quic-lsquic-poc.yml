@@ -67,6 +67,8 @@ jobs:
       - name: Configure LSQUIC with pinned dependencies
         shell: pwsh
         run: |
+          # Keep upstream /W4 diagnostics visible, but do not promote newer MSVC enum warnings to build errors.
+          $env:EXTRA_CFLAGS = "/WX-"
           cmake -S third_party/lsquic -B build/lsquic -A x64 `
             -DBUILD_SHARED_LIBS=OFF `
             -DLSQUIC_TESTS=ON `
@@ -85,4 +87,6 @@ jobs:
         shell: pwsh
         run: |
           cmake --build build/lsquic --config Debug --target ALL_BUILD --parallel 2
+          if ($LASTEXITCODE -ne 0) { throw "LSQUIC ALL_BUILD failed with exit code $LASTEXITCODE" }
           cmake --build build/lsquic --config Debug --target RUN_TESTS --parallel 2
+          if ($LASTEXITCODE -ne 0) { throw "LSQUIC RUN_TESTS failed with exit code $LASTEXITCODE" }
