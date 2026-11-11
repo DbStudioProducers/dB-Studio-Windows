@@ -87,6 +87,7 @@ jobs:
             -DVCPKG_TARGET_TRIPLET=x64-windows-static `
             -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" `
             -DCMAKE_BUILD_TYPE=Debug `
+            -DCMAKE_EXE_LINKER_FLAGS="/DEFAULTLIB:bcrypt.lib" `
             -DGETOPT_INCLUDE_DIR="$env:VCPKG_ROOT/installed/x64-windows/include" `
             -DGETOPT_LIB="$env:VCPKG_ROOT/installed/x64-windows/lib/getopt.lib" `
             -DZLIB_INCLUDE_DIR="$env:VCPKG_ROOT/installed/x64-windows-static/include" `
