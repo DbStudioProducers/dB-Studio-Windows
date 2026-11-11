@@ -137,24 +137,39 @@ jobs:
           $rsa.Dispose()
 
           function Start-IemProbeServer {
-            $stdout = Join-Path $env:RUNNER_TEMP "iem-server-out.log"
-            $stderr = Join-Path $env:RUNNER_TEMP "iem-server-err.log"
-            $serverArguments = 'server 127.0.0.1:24567 "{0}" "{1}"' -f $certPath, $keyPath
-            Write-Host "Starting IEM QUIC server with arguments: $serverArguments"
-            $server = Start-Process -FilePath $probe -ArgumentList $serverArguments -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+            $psi = [System.Diagnostics.ProcessStartInfo]::new()
+            $psi.FileName = $probe
+            $psi.Arguments = 'server 127.0.0.1:24567 "' + $certPath + '" "' + $keyPath + '"'
+            $psi.WorkingDirectory = (Split-Path $probe)
+            $psi.UseShellExecute = $false
+            $psi.RedirectStandardOutput = $true
+            $psi.RedirectStandardError = $true
+            $server = [System.Diagnostics.Process]::Start($psi)
             Start-Sleep -Seconds 2
             if ($server.HasExited) {
+              $stdoutText = $server.StandardOutput.ReadToEnd()
+              $stderrText = $server.StandardError.ReadToEnd()
               Write-Host "IEM QUIC test server exit code: $($server.ExitCode)"
-              Get-Content $stdout, $stderr
+              Write-Host "Server arguments: $($psi.Arguments)"
+              if ($stdoutText) { Write-Host $stdoutText }
+              if ($stderrText) { Write-Host $stderrText }
               throw "IEM QUIC test server exited before accepting a connection"
             }
             return $server
           }
           function Stop-IemProbeServer($server) {
-            if ($server -and !$server.HasExited) { Stop-Process -Id $server.Id -Force }
+            if ($server -and !$server.HasExited) {
+              $server.Kill()
+              $server.WaitForExit()
+            }
+            if ($server) {
+              $stdoutText = $server.StandardOutput.ReadToEnd()
+              $stderrText = $server.StandardError.ReadToEnd()
+              if ($stdoutText) { Write-Host $stdoutText }
+              if ($stderrText) { Write-Host $stderrText }
+            }
             Start-Sleep -Milliseconds 500
           }
-
           $server = Start-IemProbeServer
           & $probe client "127.0.0.1:24567" $certPath "--bad-pin"
           $badPinExit = $LASTEXITCODE
