@@ -13,9 +13,15 @@
 #include <sys/queue.h>
 #include "lsquic.h"
 #include "../src/liblsquic/lsquic_hash.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 #include "test_common.h"
 #include "test_cert.h"
 #include "prog.h"
+#ifdef __cplusplus
+}
+#endif
 #include <openssl/pem.h>
 #include <openssl/x509.h>
 #include <openssl/ssl.h>
