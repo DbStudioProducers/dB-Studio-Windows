@@ -201,3 +201,5 @@ jobs:
           $badTokenExit = $LASTEXITCODE
           Stop-IemProbeServer $server
           if ($badTokenExit -eq 0) { throw "An unpaired device was accepted" }
+          Write-Host "QUIC_TLS_DEVICE_AUTH_AND_AUDIO_DATAGRAM_NEGATIVE_TESTS_OK"
+          $global:LASTEXITCODE = 0
