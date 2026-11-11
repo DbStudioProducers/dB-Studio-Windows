@@ -33,6 +33,8 @@ struct lsquic_conn_ctx {
     App* app = nullptr;
     DbStudioSecurity::TransportSecurityGate gate{};
     bool authorized = false;
+    bool peerVerified = false;
+    lsquic_stream_t* controlStream = nullptr;
     std::array<std::uint8_t, DbStudioNet::kMaxDatagramBytes> pending{};
     std::size_t pendingSize = 0;
 };
@@ -138,6 +140,9 @@ lsquic_conn_ctx_t* onNewConnection(void* opaque, lsquic_conn_t* conn) {
     } else {
         std::cout << "Client QUIC connection created\n";
         context->gate.beginHandshake();
+        // LSQUIC creates client streams from this callback reliably. The stream
+        // remains write-disabled until onHandshakeDone verifies the pinned peer.
+        lsquic_conn_make_stream(conn);
     }
     return context;
 }
@@ -165,8 +170,17 @@ lsquic_stream_ctx_t* onNewStream(void* opaque, lsquic_stream_t* stream) {
     if (app->server) {
         lsquic_stream_wantread(stream, 1);
     } else {
+        auto* connection = static_cast<lsquic_conn_ctx_t*>(
+            lsquic_conn_get_ctx(lsquic_stream_conn(stream)));
+        if (!connection) {
+            delete context;
+            lsquic_stream_close(stream);
+            return nullptr;
+        }
+        connection->controlStream = stream;
         context->output = app->badToken ? "PAIR:unpaired-device:aux=0\n" : kPairingProof;
-        lsquic_stream_wantwrite(stream, 1);
+        if (connection->peerVerified)
+            lsquic_stream_wantwrite(stream, 1);
     }
     return context;
 }
@@ -300,7 +314,9 @@ void onHandshakeDone(lsquic_conn_t* conn, enum lsquic_hsk_status status) {
         finishClient(conn, 1);
         return;
     }
-    lsquic_conn_make_stream(conn);
+    context->peerVerified = true;
+    if (context->controlStream)
+        lsquic_stream_wantwrite(context->controlStream, 1);
 }
 
 const lsquic_stream_if streamInterface = {
