@@ -1,0 +1,86 @@
+name: dB Studio LSQUIC Windows POC
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["poc/**"]
+    paths:
+      - ".github/workflows/quic-lsquic-poc.yml"
+      - "docs/QUIC_LIBRARY_EVALUATION.md"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dB-Studio-LSQUIC-POC-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lsquic-windows-x64:
+    name: Build and test pinned LSQUIC on Windows x64
+    runs-on: windows-2022
+    timeout-minutes: 60
+    steps:
+      - name: Checkout dB Studio
+        uses: actions/checkout@v7
+
+      - name: Set up Go for BoringSSL
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.24.x"
+
+      - name: Install Perl
+        shell: pwsh
+        run: |
+          choco install strawberryperl --yes --no-progress
+          perl -v
+
+      - name: Bootstrap pinned vcpkg and dependencies
+        shell: pwsh
+        run: |
+          $vcpkgRoot = Join-Path $env:RUNNER_TEMP "vcpkg"
+          git clone https://github.com/microsoft/vcpkg.git $vcpkgRoot
+          git -C $vcpkgRoot checkout e54ef0fcc9a82033a61e51002552a910a5d57282
+          & (Join-Path $vcpkgRoot "bootstrap-vcpkg.bat") -disableMetrics
+          "VCPKG_ROOT=$vcpkgRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          & (Join-Path $vcpkgRoot "vcpkg.exe") install zlib:x64-windows-static libevent:x64-windows-static pcre:x64-windows-static getopt:x64-windows
+
+      - name: Fetch pinned LSQUIC and BoringSSL
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force third_party | Out-Null
+          git clone --branch v4.11.1 --depth 1 https://github.com/litespeedtech/lsquic.git third_party/lsquic
+          git -C third_party/lsquic submodule update --init --recursive
+          $lsquicHead = (git -C third_party/lsquic rev-parse HEAD).Trim()
+          if ($lsquicHead -ne "2f4cd42f27cf8e9b0a0f43e376a618ec8ce4a7ff") { throw "Unexpected LSQUIC commit: $lsquicHead" }
+
+          git clone --branch 0.20250807.0 --depth 1 https://boringssl.googlesource.com/boringssl third_party/boringssl
+          $boringsslTag = (git -C third_party/boringssl describe --tags --exact-match).Trim()
+          if ($boringsslTag -ne "0.20250807.0") { throw "Unexpected BoringSSL tag: $boringsslTag" }
+
+      - name: Configure and build BoringSSL
+        shell: pwsh
+        run: |
+          cmake -S third_party/boringssl -B build/boringssl -A x64 -DBUILD_SHARED_LIBS=OFF -DOPENSSL_NO_ASM=1
+          cmake --build build/boringssl --config Debug --parallel 2
+
+      - name: Configure LSQUIC with pinned dependencies
+        shell: pwsh
+        run: |
+          cmake -S third_party/lsquic -B build/lsquic -A x64 `
+            -DBUILD_SHARED_LIBS=OFF `
+            -DLSQUIC_TESTS=ON `
+            -DLSQUIC_BIN=ON `
+            -DVCPKG_TARGET_TRIPLET=x64-windows-static `
+            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" `
+            -DCMAKE_BUILD_TYPE=Debug `
+            -DGETOPT_INCLUDE_DIR="$env:VCPKG_ROOT/installed/x64-windows/include" `
+            -DGETOPT_LIB="$env:VCPKG_ROOT/installed/x64-windows/lib/getopt.lib" `
+            -DSSLLIB_INCLUDE="$PWD/third_party/boringssl/include" `
+            -DLIBSSL_DIR="$PWD/build/boringssl"
+
+      - name: Build LSQUIC and upstream test targets
+        shell: pwsh
+        run: |
+          cmake --build build/lsquic --config Debug --target ALL_BUILD --parallel 2
+          cmake --build build/lsquic --config Debug --target RUN_TESTS --parallel 2
