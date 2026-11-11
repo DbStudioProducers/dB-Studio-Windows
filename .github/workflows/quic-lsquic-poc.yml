@@ -79,7 +79,7 @@ jobs:
             -DGETOPT_INCLUDE_DIR="$env:VCPKG_ROOT/installed/x64-windows/include" `
             -DGETOPT_LIB="$env:VCPKG_ROOT/installed/x64-windows/lib/getopt.lib" `
             -DZLIB_INCLUDE_DIR="$env:VCPKG_ROOT/installed/x64-windows-static/include" `
-            -DZLIB_LIB="$env:VCPKG_ROOT/installed/x64-windows-static/lib/zlib.lib" `
+            -DZLIB_LIB="$env:VCPKG_ROOT/installed/x64-windows-static/debug/lib/zd.lib" `
             -DSSLLIB_INCLUDE="$PWD/third_party/boringssl/include" `
             -DLIBSSL_DIR="$PWD/build/boringssl"
 
