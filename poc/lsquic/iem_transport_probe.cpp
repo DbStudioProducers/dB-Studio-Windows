@@ -40,7 +40,7 @@ struct lsquic_conn_ctx {
     App* app = nullptr;
     DbStudioSecurity::TransportSecurityGate gate{};
     bool authorized = false;
-    bool peerVerified = false;
+    bool transportReady = false;
     lsquic_stream_t* controlStream = nullptr;
     std::array<Datagram, 32> outgoing{};
     std::size_t outgoingRead = 0;
@@ -231,7 +231,7 @@ lsquic_stream_ctx_t* onNewStream(void* opaque, lsquic_stream_t* stream) {
         }
         connection->controlStream = stream;
         context->output = app->badToken ? "PAIR:unpaired-device:aux=0\n" : kPairingProof;
-        if (connection->peerVerified)
+        if (connection->transportReady)
             lsquic_stream_wantwrite(stream, 1);
     }
     return context;
@@ -387,14 +387,14 @@ void onHandshakeDone(lsquic_conn_t* conn, enum lsquic_hsk_status status) {
         return;
     std::cout << "Client handshake status: " << static_cast<int>(status) << "\n";
     if ((status != LSQ_HSK_OK && status != LSQ_HSK_RESUMED_OK) ||
-        !context->gate.markPeerVerified(true)) {
+        !context->gate.markSecureTransportEstablished(true)) {
         std::cerr << "TLS peer verification failed\n";
         finishClient(conn, 1);
         return;
     }
-    context->peerVerified = true;
+    context->transportReady = true;
     const auto pending = lsquic_conn_n_pending_streams(conn);
-    std::cerr << "Client peer verified; controlStream="
+    std::cerr << "Client secure transport ready; controlStream="
               << (context->controlStream != nullptr) << ", pending=" << pending << "\n";
     if (context->controlStream) {
         lsquic_stream_wantwrite(context->controlStream, 1);
