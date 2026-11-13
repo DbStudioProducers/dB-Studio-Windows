@@ -1,6 +1,6 @@
 # dB Studio — plano mestre de implementação
 
-Estado em 10/11/2026: fundação nativa JUCE 8.0.6 em desenvolvimento; CI nativa completa aprovada no commit `38d363e`. Este plano organiza o escopo acordado; não declara como concluídos os módulos ausentes. Requisitos de segurança detalhados em [SECURITY_AND_TRANSPORT.md](SECURITY_AND_TRANSPORT.md). Avaliação documental das bibliotecas QUIC em [QUIC_LIBRARY_EVALUATION.md](QUIC_LIBRARY_EVALUATION.md).
+Estado em 13/11/2026: fundação nativa JUCE 8.0.6 compilada no Windows x64; sequência completa de CI nativa aprovada e artefato gerado no commit `552b1dbe`. POC isolada LSQUIC/BoringSSL também compilada no Windows x64, com 72/72 testes upstream e probe QUIC/TLS 1.3 + DATAGRAM aprovado. A POC não está integrada ao aplicativo nem aprovada para produção. Este plano organiza o escopo acordado; não declara como concluídos os módulos ausentes. Requisitos de segurança detalhados em [SECURITY_AND_TRANSPORT.md](SECURITY_AND_TRANSPORT.md). Avaliação documental das bibliotecas QUIC em [QUIC_LIBRARY_EVALUATION.md](QUIC_LIBRARY_EVALUATION.md).
 
 ## Produto e limites
 - Servidor desktop Windows/macOS como autoridade de áudio, sessões, usuários e atribuições.
@@ -39,9 +39,10 @@ Aceite: testes determinísticos, callback dentro do orçamento e limite de canai
 3. [Especificado] Transporte QUIC v1 + TLS 1.3; QUIC DATAGRAM para áudio e streams QUIC para controle. Não criar criptografia própria nem permitir fallback em texto claro.
 4. [Especificado] Identidade por pareamento de uso único, credenciais por dispositivo, validação do servidor, armazenamento seguro e revogação.
 5. [Especificado] Autorização server-side por ação e AUX; o pacote v1 é payload e não autentica por si só.
-6. [Avaliação documental concluída] XQUIC é a candidata inicial para POC por cobrir documentalmente as quatro plataformas e expor API DATAGRAM. Ainda não é dependência aprovada. Ver [QUIC_LIBRARY_EVALUATION.md](QUIC_LIBRARY_EVALUATION.md).
-7. Executar POC XQUIC isolada: builds Windows/macOS/Android/iOS, QUIC v1, DATAGRAM bidirecional, validação de certificados, autenticação de dispositivo, 0-RTT desabilitado, licença/dependências e testes adversariais.
-8. Só após POC aprovada, fixar dependência e implementar transporte atrás de interface isolada.
+6. [Avaliação documental atualizada] LSQUIC é a candidata técnica para POC por expor QUIC DATAGRAM; XQUIC v1.9.8 foi bloqueada para o alvo Windows. Nenhuma biblioteca está aprovada para integração/produção. Ver [QUIC_LIBRARY_EVALUATION.md](QUIC_LIBRARY_EVALUATION.md).
+7. [POC Windows x64 concluída em 13/11/2026] LSQUIC 4.11.1 e BoringSSL fixados foram compilados; 72/72 testes upstream passaram; probe isolada completou TLS 1.3, pareamento demonstrativo e round-trip DATAGRAM. Certificado/pin incorreto e prova de pareamento incorreta foram rejeitados. A prova usa credencial demonstrativa hard-coded e não comprova autenticação de cliente por certificado, revogação, anti-replay, 0-RTT negativo, interoperabilidade móvel ou segurança de produção.
+8. Executar POC multiplataforma/adversarial: builds Windows/macOS/Android/iOS, QUIC v1, DATAGRAM bidirecional, validação de certificados, identidade real de dispositivo, 0-RTT desabilitado e comprovadamente rejeitado, licença/dependências, SBOM, fuzzing e testes de falhas.
+9. Só após POC aprovada, fixar dependência e implementar transporte atrás de interface isolada.
 9. Implementar sender como consumidor único da fila, com acquire/release seguro em todos os caminhos e backpressure limitado.
 10. Implementar jitter buffer, reordenação, descarte de pacotes atrasados, métricas, heartbeat e reconexão.
 11. Desabilitar 0-RTT para operações com efeito; proteger contra replay, mensagens duplicadas, sessões antigas e abuso.
