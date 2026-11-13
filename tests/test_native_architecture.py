@@ -9,11 +9,17 @@ class NativeArchitectureChecks(unittest.TestCase):
         cls.engine_cpp = (ROOT / 'Source' / 'AudioEngine.cpp').read_text(encoding='utf-8')
         cls.renderer = (ROOT / 'Source' / 'MixRenderer.h').read_text(encoding='utf-8')
         cls.main_component = (ROOT / 'Source' / 'MainComponent.cpp').read_text(encoding='utf-8')
-    def test_workflow_uses_node24_compatible_action_releases(self):
+    def test_workflow_actions_are_pinned_to_immutable_revisions(self):
+        import re
         workflow = (ROOT / '.github' / 'workflows' / 'windows-build.yml').read_text(encoding='utf-8')
-        self.assertIn('actions/checkout@v7', workflow)
-        self.assertIn('actions/setup-python@v7', workflow)
-        self.assertIn('actions/upload-artifact@v7', workflow)
+        required_actions = (
+            'actions/checkout',
+            'actions/setup-python',
+            'actions/upload-artifact',
+        )
+        for action in required_actions:
+            match = re.search(rf'uses:\s*{re.escape(action)}@([0-9a-f]{{40}})(?:\s|$)', workflow)
+            self.assertIsNotNone(match, f'{action} must be pinned to a full immutable commit SHA')
     def test_juce_8_is_pinned(self):
         self.assertIn('GIT_TAG 8.0.6', self.cmake)
     def test_audio_architecture_has_32_inputs_and_16_stereo_mixes(self):
