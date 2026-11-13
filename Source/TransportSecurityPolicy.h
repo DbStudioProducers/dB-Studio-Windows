@@ -3,7 +3,7 @@
 // This class performs NO TLS, certificate validation, authentication,
 // authorization, networking, or cryptography.
 namespace DbStudioSecurity {
-enum class TransportPhase { disconnected, handshaking, peerVerified, deviceAuthenticated, authorized, closed };
+enum class TransportPhase { disconnected, handshaking, secureTransportEstablished, deviceAuthenticated, authorized, closed };
 enum class DataClass { audioDatagram, reliableControl, telemetry, talkback };
 class TransportSecurityGate final {
 public:
@@ -12,15 +12,16 @@ public:
         if (phase_ != TransportPhase::disconnected) return false;
         phase_ = TransportPhase::handshaking; return true;
     }
-    // Invoke only after TLS handshake completion and peer identity verification.
-    constexpr bool markPeerVerified(bool verified) noexcept {
+    // Invoke after QUIC/TLS handshake completion. The client must validate the server identity
+    // before calling this; server-side device identity is checked separately below.
+    constexpr bool markSecureTransportEstablished(bool established) noexcept {
         if (phase_ != TransportPhase::handshaking) return false;
-        if (!verified) { phase_ = TransportPhase::closed; return false; }
-        phase_ = TransportPhase::peerVerified; return true;
+        if (!established) { phase_ = TransportPhase::closed; return false; }
+        phase_ = TransportPhase::secureTransportEstablished; return true;
     }
     // Invoke only after server-side individual device authentication.
     constexpr bool markDeviceAuthenticated(bool authenticated) noexcept {
-        if (phase_ != TransportPhase::peerVerified) return false;
+        if (phase_ != TransportPhase::secureTransportEstablished) return false;
         if (!authenticated) { phase_ = TransportPhase::closed; return false; }
         phase_ = TransportPhase::deviceAuthenticated; return true;
     }
