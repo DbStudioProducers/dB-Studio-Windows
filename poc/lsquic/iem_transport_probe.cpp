@@ -142,7 +142,8 @@ bool enqueueTestAudio(lsquic_conn_ctx_t& connection) {
     sessionId[0] = 0x42;
     DbStudioNet::IemAudioPacketPump pump(sessionId, 48000);
     ProbeDatagramSink sink{connection};
-    const auto result = pump.pumpOne(queue, sink, connection.gate);
+    const auto result = pump.pumpOne(queue, sink, connection.gate,
+                                    std::uint16_t{1} << 0); // only AUX 0 is granted
     return result == DbStudioNet::AudioPumpResult::sent &&
            connection.outgoingCount == 2;
 }
@@ -161,7 +162,7 @@ bool validAudioDatagram(const std::uint8_t* data, std::size_t size,
     packetIndex = packetOffset;
     constexpr std::size_t channel = 0;
     const auto sourceFrame = packetOffset * kMaxFramesPerPacket;
-    if (metadata.sessionId[0] != 0x42 || metadata.streamId != stream ||
+    if (metadata.sessionId[0] != 0x42 || metadata.streamId != 0 ||
         metadata.sequence != packetOffset ||
         metadata.timestampFrames != 4096 + sourceFrame ||
         metadata.sampleRate != 48000 || metadata.frames != kMaxFramesPerPacket)
