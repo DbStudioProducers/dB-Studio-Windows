@@ -25,7 +25,7 @@ struct DatagramCapture {
 
 void authorize(DbStudioSecurity::TransportSecurityGate& gate) {
     gate.beginHandshake();
-    gate.markPeerVerified(true);
+    gate.markSecureTransportEstablished(true);
     gate.markDeviceAuthenticated(true);
     gate.markAuthorized(true);
 }
