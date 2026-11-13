@@ -40,6 +40,19 @@ jobs:
         run: ctest --test-dir build -C Release --output-on-failure
       - name: Compile native application
         run: cmake --build build --config Release --target dBStudio --parallel 2
+      - name: Generate SHA-256 manifest
+        shell: pwsh
+        run: |
+          $root = (Resolve-Path "build/dBStudio_artefacts/Release").Path
+          $files = @(Get-ChildItem -LiteralPath $root -File -Recurse | Sort-Object FullName)
+          if ($files.Count -eq 0) { throw "No native application files found for hashing" }
+          $lines = foreach ($file in $files) {
+            $hash = Get-FileHash -Algorithm SHA256 -LiteralPath $file.FullName
+            $relative = $file.FullName.Substring($root.Length).TrimStart([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar)
+            "$($hash.Hash.ToLowerInvariant())  $relative"
+          }
+          $manifest = Join-Path $root "SHA256SUMS.txt"
+          [IO.File]::WriteAllLines($manifest, [string[]]$lines, [System.Text.UTF8Encoding]::new($false))
       - name: Upload native application
         uses: actions/upload-artifact@v7
         with:
