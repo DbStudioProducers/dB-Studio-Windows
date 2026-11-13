@@ -126,8 +126,10 @@ jobs:
           $probe = Join-Path $PWD "build/lsquic/bin/Debug/iem_transport_probe.exe"
           if (!(Test-Path $probe)) { throw "IEM transport probe executable was not produced" }
 
-          $serverCert = New-SelfSignedCertificate -DnsName "iem-poc.local" -CertStoreLocation "Cert:\CurrentUser\My" -KeyAlgorithm RSA -KeyLength 2048 -KeyExportPolicy Exportable -Type SSLServerAuthentication -NotAfter (Get-Date).AddDays(1)
-          $rsa = [System.Security.Cryptography.X509Certificates.RSACertificateExtensions]::GetRSAPrivateKey($serverCert)
+          $certStore = "Cert:\\CurrentUser\\My"
+          $caCert = New-SelfSignedCertificate -Subject "CN=dB Studio POC Root CA" -CertStoreLocation $certStore -KeyAlgorithm RSA -KeyLength 2048 -KeyExportPolicy Exportable -KeyUsage CertSign,CRLSign -TextExtension @("2.5.29.19={critical}{text}ca=TRUE") -NotAfter (Get-Date).AddDays(2)
+          $serverCert = New-SelfSignedCertificate -DnsName "iem-poc.local" -Signer $caCert -CertStoreLocation $certStore -KeyAlgorithm RSA -KeyLength 2048 -KeyExportPolicy Exportable -Type SSLServerAuthentication -NotAfter (Get-Date).AddDays(1)
+          $clientCert = New-SelfSignedCertificate -DnsName "demo-device-01" -Signer $caCert -CertStoreLocation $certStore -KeyAlgorithm RSA -KeyLength 2048 -KeyExportPolicy Exportable -Type SSLClientAuthentication -NotAfter (Get-Date).AddDays(1)
           function ConvertTo-PemText([string]$label, [byte[]]$bytes) {
             $base64 = [Convert]::ToBase64String($bytes)
             $builder = [System.Text.StringBuilder]::new()
@@ -139,17 +141,33 @@ jobs:
             [void]$builder.AppendLine("-----END $label-----")
             return $builder.ToString()
           }
-          $keyBytes = $rsa.ExportPkcs8PrivateKey()
-          $certPath = Join-Path $env:RUNNER_TEMP "iem-poc-cert.pem"
-          $keyPath = Join-Path $env:RUNNER_TEMP "iem-poc-key.pem"
-          [System.IO.File]::WriteAllText($certPath, (ConvertTo-PemText "CERTIFICATE" $serverCert.RawData), [System.Text.UTF8Encoding]::new($false))
-          [System.IO.File]::WriteAllText($keyPath, (ConvertTo-PemText "PRIVATE KEY" $keyBytes), [System.Text.UTF8Encoding]::new($false))
-          $rsa.Dispose()
+          function Write-CertificatePem($certificate, [string]$path) {
+            [System.IO.File]::WriteAllText($path, (ConvertTo-PemText "CERTIFICATE" $certificate.RawData), [System.Text.UTF8Encoding]::new($false))
+          }
+          function Write-PrivateKeyPem($certificate, [string]$path) {
+            $rsaKey = [System.Security.Cryptography.X509Certificates.RSACertificateExtensions]::GetRSAPrivateKey($certificate)
+            try {
+              $keyBytes = $rsaKey.ExportPkcs8PrivateKey()
+              [System.IO.File]::WriteAllText($path, (ConvertTo-PemText "PRIVATE KEY" $keyBytes), [System.Text.UTF8Encoding]::new($false))
+            } finally {
+              $rsaKey.Dispose()
+            }
+          }
+          $certPath = Join-Path $env:RUNNER_TEMP "iem-poc-server-cert.pem"
+          $keyPath = Join-Path $env:RUNNER_TEMP "iem-poc-server-key.pem"
+          $caPath = Join-Path $env:RUNNER_TEMP "iem-poc-root-ca.pem"
+          $clientCertPath = Join-Path $env:RUNNER_TEMP "iem-poc-client-cert.pem"
+          $clientKeyPath = Join-Path $env:RUNNER_TEMP "iem-poc-client-key.pem"
+          Write-CertificatePem $serverCert $certPath
+          Write-PrivateKeyPem $serverCert $keyPath
+          Write-CertificatePem $caCert $caPath
+          Write-CertificatePem $clientCert $clientCertPath
+          Write-PrivateKeyPem $clientCert $clientKeyPath
 
           function Start-IemProbeServer([int]$port) {
             $psi = [System.Diagnostics.ProcessStartInfo]::new()
             $psi.FileName = $probe
-            $psi.Arguments = 'server 127.0.0.1:' + $port + ' "' + $certPath + '" "' + $keyPath + '"'
+            $psi.Arguments = 'server 127.0.0.1:' + $port + ' "' + $certPath + '" "' + $keyPath + '" "' + $caPath + '"'
             $psi.WorkingDirectory = (Split-Path $probe)
             $psi.UseShellExecute = $false
             $psi.RedirectStandardOutput = $true
@@ -181,7 +199,7 @@ jobs:
             Start-Sleep -Milliseconds 500
           }
           $server = Start-IemProbeServer 24567
-          $probeOutput = & $probe client "127.0.0.1:24567" $certPath 2>&1
+          $probeOutput = & $probe client "127.0.0.1:24567" $certPath $clientCertPath $clientKeyPath 2>&1
           $probeExit = $LASTEXITCODE
           Write-Host "Authenticated audio probe exit code: $probeExit"
           $probeOutput | Write-Host
@@ -191,15 +209,20 @@ jobs:
           }
 
           $server = Start-IemProbeServer 24568
-          & $probe client "127.0.0.1:24568" $certPath "--bad-pin"
+          & $probe client "127.0.0.1:24568" $certPath $clientCertPath $clientKeyPath "--bad-pin"
           $badPinExit = $LASTEXITCODE
           Stop-IemProbeServer $server
           if ($badPinExit -eq 0) { throw "A certificate with the wrong pin was accepted" }
 
           $server = Start-IemProbeServer 24569
-          & $probe client "127.0.0.1:24569" $certPath "--bad-token"
+          & $probe client "127.0.0.1:24569" $certPath $clientCertPath $clientKeyPath "--bad-token"
           $badTokenExit = $LASTEXITCODE
           Stop-IemProbeServer $server
           if ($badTokenExit -eq 0) { throw "An unpaired device was accepted" }
-          Write-Host "QUIC_TLS_DEVICE_AUTH_AND_AUDIO_DATAGRAM_NEGATIVE_TESTS_OK"
+          $server = Start-IemProbeServer 24570
+          & $probe client "127.0.0.1:24570" $certPath $clientCertPath $clientKeyPath "--no-client-cert"
+          $noClientCertExit = $LASTEXITCODE
+          Stop-IemProbeServer $server
+          if ($noClientCertExit -eq 0) { throw "A client without a TLS certificate was accepted" }
+          Write-Host "QUIC_TLS_MUTUAL_CLIENT_CERT_NEGATIVE_TESTS_OK"
           $global:LASTEXITCODE = 0
