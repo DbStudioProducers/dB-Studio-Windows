@@ -41,6 +41,7 @@ struct lsquic_conn_ctx {
     DbStudioSecurity::TransportSecurityGate gate{};
     bool authorized = false;
     bool transportReady = false;
+    bool clientCertificateVerified = false;
     lsquic_stream_t* controlStream = nullptr;
     std::array<Datagram, 32> outgoing{};
     std::size_t outgoingRead = 0;
@@ -62,10 +63,13 @@ struct App {
     bool server = false;
     bool badPin = false;
     bool badToken = false;
+    bool noClientCertificate = false;
     int exitCode = 1;
     X509* pinnedCertificate = nullptr;
     std::string certificatePath;
     std::string keyPath;
+    std::string clientCertificatePath;
+    std::string clientKeyPath;
 };
 
 namespace {
@@ -182,13 +186,32 @@ lsquic_conn_ctx_t* onNewConnection(void* opaque, lsquic_conn_t* conn) {
     context->app = app;
     lsquic_conn_set_ctx(conn, context);
     if (app->server) {
-        // Server TLS is complete here. Device identity still requires the authenticated control stream.
+        // LSQUIC invokes this callback after the QUIC/TLS handshake. Require a
+        // CA-validated client certificate and an allow-listed device identity.
         context->gate.beginHandshake();
         if (!context->gate.markSecureTransportEstablished(true)) {
             lsquic_conn_close(conn);
             return context;
         }
-        std::cout << "TLS 1.3 QUIC transport established; awaiting device pairing proof\n";
+        auto* peerChain = lsquic_conn_get_full_peer_cert_chain(conn);
+        X509* peerLeaf = peerChain && sk_X509_num(peerChain) > 0
+            ? sk_X509_value(peerChain, 0) : nullptr;
+        std::array<char, 129> commonName{};
+        const int commonNameLength = peerLeaf
+            ? X509_NAME_get_text_by_NID(X509_get_subject_name(peerLeaf), NID_commonName,
+                                        commonName.data(), static_cast<int>(commonName.size()))
+            : -1;
+        context->clientCertificateVerified = commonNameLength > 0 &&
+            commonNameLength < static_cast<int>(commonName.size()) &&
+            std::string_view(commonName.data(), static_cast<std::size_t>(commonNameLength)) == "demo-device-01";
+        if (peerChain)
+            sk_X509_pop_free(peerChain, X509_free);
+        if (!context->clientCertificateVerified) {
+            std::cerr << "Client certificate identity rejected\n";
+            lsquic_conn_close(conn);
+            return context;
+        }
+        std::cout << "TLS 1.3 QUIC mutual client certificate verified for demo-device-01; awaiting pairing proof\n";
     } else {
         std::cout << "Client QUIC connection created\n";
         context->gate.beginHandshake();
@@ -269,7 +292,8 @@ void onStreamRead(lsquic_stream_t* stream, lsquic_stream_ctx_t* context) {
             lsquic_conn_close(lsquic_stream_conn(stream));
             return;
         }
-        if (!connection->gate.markDeviceAuthenticated(true) ||
+        if (!connection->clientCertificateVerified ||
+            !connection->gate.markDeviceAuthenticated(true) ||
             !connection->gate.markAuthorized(true)) {
             lsquic_conn_close(lsquic_stream_conn(stream));
             return;
@@ -414,11 +438,15 @@ const lsquic_stream_if streamInterface = {
 };
 
 int run(bool server, const char* address, const char* cert, const char* key,
-        const char* trust, bool badPin, bool badToken) {
+        const char* trust, const char* clientCert, const char* clientKey,
+        bool badPin, bool badToken, bool noClientCertificate) {
     App app{};
     app.server = server;
     app.badPin = badPin;
     app.badToken = badToken;
+    app.noClientCertificate = noClientCertificate;
+    app.clientCertificatePath = clientCert ? clientCert : "";
+    app.clientKeyPath = clientKey ? clientKey : "";
     app.certificatePath = cert ? cert : "";
     app.keyPath = key ? key : "";
     g_app = &app;
@@ -457,6 +485,12 @@ int run(bool server, const char* address, const char* cert, const char* key,
             std::cerr << "probe initialization failed: server certificate lookup\n" << std::flush;
             return 2;
         }
+        if (SSL_CTX_load_verify_locations(ssl, trust, nullptr) != 1) {
+            std::cerr << "probe initialization failed: loading client CA trust\n" << std::flush;
+            return 2;
+        }
+        SSL_CTX_set_min_proto_version(ssl, TLS1_3_VERSION);
+        SSL_CTX_set_verify(ssl, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, nullptr);
         SSL_CTX_set_early_data_enabled(ssl, 0);
     } else {
         if (prog_set_opt(&app.program, 's', address) != 0) {
@@ -482,8 +516,17 @@ int run(bool server, const char* address, const char* cert, const char* key,
             std::cerr << "probe initialization failed: parsing pinned certificate\n" << std::flush;
             return 2;
         }
-        SSL_CTX_set_verify(app.program.prog_ssl_ctx, SSL_VERIFY_PEER,
-                           verifyPinnedPeer);
+        SSL_CTX_set_min_proto_version(app.program.prog_ssl_ctx, TLS1_3_VERSION);
+        SSL_CTX_set_verify(app.program.prog_ssl_ctx, SSL_VERIFY_PEER, verifyPinnedPeer);
+        if (!noClientCertificate) {
+            if (clientCert == nullptr || clientKey == nullptr ||
+                SSL_CTX_use_certificate_file(app.program.prog_ssl_ctx, clientCert, SSL_FILETYPE_PEM) != 1 ||
+                SSL_CTX_use_PrivateKey_file(app.program.prog_ssl_ctx, clientKey, SSL_FILETYPE_PEM) != 1 ||
+                SSL_CTX_check_private_key(app.program.prog_ssl_ctx) != 1) {
+                std::cerr << "probe initialization failed: loading client certificate/key\n" << std::flush;
+                return 2;
+            }
+        }
         SSL_CTX_set_early_data_enabled(app.program.prog_ssl_ctx, 0);
     }
 
@@ -516,15 +559,18 @@ int main(int argc, char** argv) {
     }
     const std::string mode = argv[1];
     std::cerr << "probe mode=" << mode << " argc=" << argc << "\n" << std::flush;
-    if (mode == "server" && argc == 5)
-        return run(true, argv[2], argv[3], argv[4], nullptr, false, false);
-    if (mode == "client" && argc >= 4) {
-        bool badPin = false, badToken = false;
-        for (int i = 4; i < argc; ++i) {
+    if (mode == "server" && argc == 6)
+        return run(true, argv[2], argv[3], argv[4], argv[5], nullptr, nullptr,
+                   false, false, false);
+    if (mode == "client" && argc >= 6) {
+        bool badPin = false, badToken = false, noClientCertificate = false;
+        for (int i = 6; i < argc; ++i) {
             badPin = badPin || std::string(argv[i]) == "--bad-pin";
             badToken = badToken || std::string(argv[i]) == "--bad-token";
+            noClientCertificate = noClientCertificate || std::string(argv[i]) == "--no-client-cert";
         }
-        return run(false, argv[2], nullptr, nullptr, argv[3], badPin, badToken);
+        return run(false, argv[2], nullptr, nullptr, argv[3], argv[4], argv[5],
+                   badPin, badToken, noClientCertificate);
     }
     std::cerr << "probe unsupported argument combination: mode=" << mode
               << " argc=" << argc << "\n" << std::flush;
