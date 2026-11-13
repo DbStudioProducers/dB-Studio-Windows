@@ -19,7 +19,7 @@ int main() {
     CHECK(!invalidPeer.beginHandshake());
     TransportSecurityGate session;
     CHECK(session.beginHandshake());
-    CHECK(session.markPeerVerified(true));
+    CHECK(session.markSecureTransportEstablished(true));
     CHECK(!session.maySend(DataClass::audioDatagram, false));
     CHECK(!session.mayProcessCommand(false));
     CHECK(session.markDeviceAuthenticated(true));
@@ -27,7 +27,7 @@ int main() {
     CHECK(!session.mayProcessCommand(false));
     TransportSecurityGate denied;
     CHECK(denied.beginHandshake());
-    CHECK(denied.markPeerVerified(true));
+    CHECK(denied.markSecureTransportEstablished(true));
     CHECK(denied.markDeviceAuthenticated(true));
     CHECK(!denied.markAuthorized(false));
     CHECK(denied.phase() == TransportPhase::closed);
