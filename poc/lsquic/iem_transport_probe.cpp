@@ -184,7 +184,11 @@ lsquic_conn_ctx_t* onNewConnection(void* opaque, lsquic_conn_t* conn) {
     if (app->server) {
         // Server TLS is complete here. Device identity still requires the authenticated control stream.
         context->gate.beginHandshake();
-        std::cout << "TLS 1.3 QUIC peer connected; awaiting device pairing proof\n";
+        if (!context->gate.markSecureTransportEstablished(true)) {
+            lsquic_conn_close(conn);
+            return context;
+        }
+        std::cout << "TLS 1.3 QUIC transport established; awaiting device pairing proof\n";
     } else {
         std::cout << "Client QUIC connection created\n";
         context->gate.beginHandshake();
@@ -265,8 +269,7 @@ void onStreamRead(lsquic_stream_t* stream, lsquic_stream_ctx_t* context) {
             lsquic_conn_close(lsquic_stream_conn(stream));
             return;
         }
-        if (!connection->gate.markPeerVerified(true) ||
-            !connection->gate.markDeviceAuthenticated(true) ||
+        if (!connection->gate.markDeviceAuthenticated(true) ||
             !connection->gate.markAuthorized(true)) {
             lsquic_conn_close(lsquic_stream_conn(stream));
             return;
