@@ -12,9 +12,9 @@ int main() {
     CHECK(!gate.markDeviceAuthenticated(true));
     CHECK(!gate.markAuthorized(true));
     CHECK(!gate.maySend(DataClass::audioDatagram, false));
-    TransportSecurityGate invalidPeer;
+    TransportSecurityGate invalidTransport;
     CHECK(invalidPeer.beginHandshake());
-    CHECK(!invalidPeer.markPeerVerified(false));
+    CHECK(!invalidPeer.markSecureTransportEstablished(false));
     CHECK(invalidPeer.phase() == TransportPhase::closed);
     CHECK(!invalidPeer.beginHandshake());
     TransportSecurityGate session;
