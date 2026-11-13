@@ -127,7 +127,7 @@ jobs:
           if (!(Test-Path $probe)) { throw "IEM transport probe executable was not produced" }
 
           $certStore = "Cert:\\CurrentUser\\My"
-          $caCert = New-SelfSignedCertificate -Subject "CN=dB Studio POC Root CA" -CertStoreLocation $certStore -KeyAlgorithm RSA -KeyLength 2048 -KeyExportPolicy Exportable -KeyUsage KeyCertSign,CrlSign -TextExtension @("2.5.29.19={critical}{text}ca=TRUE") -NotAfter (Get-Date).AddDays(2)
+          $caCert = New-SelfSignedCertificate -Subject "CN=dB Studio POC Root CA" -CertStoreLocation $certStore -KeyAlgorithm RSA -KeyLength 2048 -KeyExportPolicy Exportable -KeyUsage CertSign,CRLSign -TextExtension @("2.5.29.19={critical}{text}ca=TRUE") -NotAfter (Get-Date).AddDays(2)
           $serverCert = New-SelfSignedCertificate -DnsName "iem-poc.local" -Signer $caCert -CertStoreLocation $certStore -KeyAlgorithm RSA -KeyLength 2048 -KeyExportPolicy Exportable -Type SSLServerAuthentication -NotAfter (Get-Date).AddDays(1)
           $clientCert = New-SelfSignedCertificate -DnsName "demo-device-01" -Signer $caCert -CertStoreLocation $certStore -KeyAlgorithm RSA -KeyLength 2048 -KeyExportPolicy Exportable -Type SSLClientAuthentication -NotAfter (Get-Date).AddDays(1)
           function ConvertTo-PemText([string]$label, [byte[]]$bytes) {
