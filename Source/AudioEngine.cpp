@@ -1,5 +1,4 @@
 #include "AudioEngine.h"
-#include "MixRenderer.h"
 #include <algorithm>
 #include <cmath>
 
@@ -11,6 +10,7 @@ AudioEngine::AudioEngine() {
             inputGains_[static_cast<size_t>(mix)][static_cast<size_t>(input)].store(0.125f);
             inputPans_[static_cast<size_t>(mix)][static_cast<size_t>(input)].store(0.0f);
             inputMutes_[static_cast<size_t>(mix)][static_cast<size_t>(input)].store(false);
+            inputSolos_[static_cast<size_t>(mix)][static_cast<size_t>(input)].store(false);
         }
 }
 
@@ -51,7 +51,7 @@ void AudioEngine::audioDeviceIOCallbackWithContext(const float* const* inputs, i
     // Physical outputs are deliberately silent in this foundation. They are
     // not the AUX destinations; all 16 stereo mixes are rendered below.
     for (int out = 0; out < numOutputs; ++out)
-        if (outputs[out] != nullptr) juce::FloatVectorOperations::clear(outputs[out], samples);
+        if (outputs != nullptr && outputs[out] != nullptr) juce::FloatVectorOperations::clear(outputs[out], samples);
 
     std::array<float, kInputChannels> peaks{};
     std::array<float, kMixes> mixPeaks{};
@@ -66,7 +66,7 @@ void AudioEngine::audioDeviceIOCallbackWithContext(const float* const* inputs, i
 
     const int availableInputs = std::min(numInputs, kInputChannels);
     for (int channel = 0; channel < availableInputs; ++channel) {
-        if (inputs[channel] == nullptr) continue;
+        if (inputs == nullptr || inputs[channel] == nullptr) continue;
         float peak = 0.0f;
         for (int sample = 0; sample < samples; ++sample) {
             const float value = inputs[channel][sample];
@@ -83,9 +83,13 @@ void AudioEngine::audioDeviceIOCallbackWithContext(const float* const* inputs, i
     std::array<std::array<bool, kInputChannels>, kMixes> enabled{};
     for (int mix = 0; mix < kMixes; ++mix) {
         const auto m = static_cast<size_t>(mix);
+        bool anySolo = false;
+        for (int channel = 0; channel < availableInputs; ++channel)
+            anySolo = anySolo || inputSolos_[m][static_cast<size_t>(channel)].load();
         for (int channel = 0; channel < availableInputs; ++channel) {
             const auto ch = static_cast<size_t>(channel);
-            const bool active = inputs[channel] != nullptr && !inputMutes_[m][ch].load();
+            const bool active = inputs != nullptr && inputs[channel] != nullptr &&
+                DbStudioMix::isInputAudible(inputMutes_[m][ch].load(), inputSolos_[m][ch].load(), anySolo);
             enabled[m][ch] = active;
             if (!active) continue;
             const float gain = inputGains_[m][ch].load();
@@ -104,7 +108,16 @@ void AudioEngine::audioDeviceIOCallbackWithContext(const float* const* inputs, i
     std::array<const float*, kOutputChannels> networkChannels{};
     for (int bus = 0; bus < kOutputChannels; ++bus)
         networkChannels[static_cast<size_t>(bus)] = mixBusBuffers_[static_cast<size_t>(bus)].data();
-    networkQueue_.tryPush(networkChannels.data(), samples);bool AudioEngine::tryAcquireNetworkBlock(const float*& samples, int& frames, unsigned long long& sequence) noexcept {
+    networkQueue_.tryPush(networkChannels.data(), samples);
+
+    for (int channel = 0; channel < kInputChannels; ++channel)
+        inputPeaks_[static_cast<size_t>(channel)].store(peaks[static_cast<size_t>(channel)]);
+    for (int mix = 0; mix < kMixes; ++mix)
+        outputPeaks_[static_cast<size_t>(mix)].store(mixPeaks[static_cast<size_t>(mix)]);
+}
+
+
+bool AudioEngine::tryAcquireNetworkBlock(const float*& samples, int& frames, unsigned long long& sequence) noexcept {
     NetworkQueue::BlockView view{};
     if (!networkQueue_.tryAcquire(view)) return false;
     samples = view.samples;
@@ -116,3 +129,46 @@ void AudioEngine::releaseNetworkBlock() noexcept {
     networkQueue_.release();
 }
 
+float AudioEngine::inputPeak(int channel) const noexcept {
+    return channel >= 0 && channel < kInputChannels
+        ? inputPeaks_[static_cast<size_t>(channel)].load() : 0.0f;
+}
+float AudioEngine::outputPeak(int mix) const noexcept {
+    return mix >= 0 && mix < kMixes
+        ? outputPeaks_[static_cast<size_t>(mix)].load() : 0.0f;
+}
+
+void AudioEngine::setMixInputGain(int mix, int input, float gain) noexcept {
+    if (mix >= 0 && mix < kMixes && input >= 0 && input < kInputChannels)
+        inputGains_[static_cast<size_t>(mix)][static_cast<size_t>(input)].store(
+            std::isfinite(gain) ? juce::jlimit(0.0f, 2.0f, gain) : 0.0f);
+}
+void AudioEngine::setMixInputPan(int mix, int input, float pan) noexcept {
+    if (mix >= 0 && mix < kMixes && input >= 0 && input < kInputChannels)
+        inputPans_[static_cast<size_t>(mix)][static_cast<size_t>(input)].store(
+            std::isfinite(pan) ? juce::jlimit(-1.0f, 1.0f, pan) : 0.0f);
+}
+void AudioEngine::setMixInputMuted(int mix, int input, bool muted) noexcept {
+    if (mix >= 0 && mix < kMixes && input >= 0 && input < kInputChannels)
+        inputMutes_[static_cast<size_t>(mix)][static_cast<size_t>(input)].store(muted);
+}
+void AudioEngine::setMixInputSolo(int mix, int input, bool solo) noexcept {
+    if (mix >= 0 && mix < kMixes && input >= 0 && input < kInputChannels)
+        inputSolos_[static_cast<size_t>(mix)][static_cast<size_t>(input)].store(solo);
+}
+float AudioEngine::mixInputGain(int mix, int input) const noexcept {
+    return mix >= 0 && mix < kMixes && input >= 0 && input < kInputChannels
+        ? inputGains_[static_cast<size_t>(mix)][static_cast<size_t>(input)].load() : 0.0f;
+}
+float AudioEngine::mixInputPan(int mix, int input) const noexcept {
+    return mix >= 0 && mix < kMixes && input >= 0 && input < kInputChannels
+        ? inputPans_[static_cast<size_t>(mix)][static_cast<size_t>(input)].load() : 0.0f;
+}
+bool AudioEngine::mixInputMuted(int mix, int input) const noexcept {
+    return mix >= 0 && mix < kMixes && input >= 0 && input < kInputChannels
+        ? inputMutes_[static_cast<size_t>(mix)][static_cast<size_t>(input)].load() : true;
+}
+bool AudioEngine::mixInputSolo(int mix, int input) const noexcept {
+    return mix >= 0 && mix < kMixes && input >= 0 && input < kInputChannels
+        ? inputSolos_[static_cast<size_t>(mix)][static_cast<size_t>(input)].load() : false;
+}
