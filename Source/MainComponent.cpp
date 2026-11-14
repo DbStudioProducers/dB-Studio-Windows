@@ -29,7 +29,6 @@ MainComponent::MainComponent() {
             status_.setText("AVISO: cadastro AUX salvo inválido; não foi carregado.", juce::dontSendNotification);
     }
     setSize(1180, 760);
-    setMinimumSize(960, 650);
     title_.setText("dB STUDIO", juce::dontSendNotification);
     // This constructor is supported by JUCE 7 and JUCE 8.
     title_.setFont(juce::Font(27.0f, juce::Font::bold));
@@ -163,10 +162,8 @@ void MainComponent::paint(juce::Graphics& g) {
     g.fillRoundedRectangle(getLocalBounds().toFloat().reduced(16), 9.0f);
     g.setColour(green);
     g.fillRect(18, 86, getWidth() - 36, 2);
-    g.setColour(juce::Colour(0xff30363b));
-    for (int row = 0; row < 4; ++row)
-        g.drawRoundedRectangle(28.0f, 150.0f + row * 145.0f, static_cast<float>(getWidth() - 56),
-                               137.0f, 5.0f, 1.0f);
+    g.setColour(juce::Colour(0xff252b30));
+    g.drawHorizontalLine(96, 20.0f, static_cast<float>(getWidth() - 20));
 }
 
 void MainComponent::resized() {
