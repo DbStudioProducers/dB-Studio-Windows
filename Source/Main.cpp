@@ -8,7 +8,7 @@ const juce::Colour background{0xff101215};
 class DbStudioApplication final : public juce::JUCEApplication {
 public:
     const juce::String getApplicationName() override { return "dB Studio"; }
-    const juce::String getApplicationVersion() override { return "0.5.0"; }
+    const juce::String getApplicationVersion() override { return "0.5.1"; }
     bool moreThanOneInstanceAllowed() override { return true; }
     void initialise(const juce::String&) override {
         mainWindow_ = std::make_unique<MainWindow>(getApplicationName());
