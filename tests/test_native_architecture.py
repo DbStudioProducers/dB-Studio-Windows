@@ -92,12 +92,11 @@ class NativeArchitectureChecks(unittest.TestCase):
         self.assertIn('gridWidth / 220', self.main_component)
         self.assertIn('channelGrid_.getLocalBounds()', self.main_component)
 
-    def test_asio_is_opt_in_and_requires_the_external_sdk_header(self):
+    def test_asio_is_disabled_without_confirmed_steinberg_license(self):
         self.assertIn('option(DBSTUDIO_ENABLE_ASIO', self.cmake)
-        self.assertIn('DBSTUDIO_ASIO_SDK_COMMON_DIR', self.cmake)
-        self.assertIn('iasiodrv.h', self.cmake)
-        self.assertIn('JUCE_ASIO_USE_EXTERNAL_SDK', self.cmake)
-        self.assertIn('target_include_directories(dBStudio PRIVATE', self.cmake)
+        self.assertIn('JUCE_ASIO=$<BOOL:${DBSTUDIO_ENABLE_ASIO}>', self.cmake)
+        self.assertIn('JUCE_ASIO_USE_EXTERNAL_SDK=0', self.cmake)
+        self.assertIn('ASIO distribution is disabled until the applicable Steinberg license is confirmed', self.cmake)
         self.assertIn('DBSTUDIO_ENABLE_ASIO=OFF', (ROOT / '.github' / 'workflows' / 'windows-build.yml').read_text(encoding='utf-8'))
 
     def test_updater_is_packaged_and_hash_verified(self):
