@@ -40,6 +40,23 @@ FetchContent_Declare(juce
 )
 FetchContent_MakeAvailable(juce)
 
+if(DBSTUDIO_WINDOWS_81_TARGET)
+  # JUCE 7's PushNotifications enum member "small" collides with the
+  # Windows SDK rpcndr.h macro of the same name. This app does not use push
+  # notifications; rename the unused enum token in the fetched JUCE 7 tree
+  # while preserving its ordinal value and all JUCE 8 sources.
+  set(_juce_push_header "${juce_SOURCE_DIR}/modules/juce_gui_extra/misc/juce_PushNotifications.h")
+  file(READ "${_juce_push_header}" _juce_push_content)
+  string(REPLACE "            small,\\r\\n" "            smallIcon,\\r\\n" _juce_push_patched "${_juce_push_content}")
+  if(_juce_push_patched STREQUAL _juce_push_content)
+    string(REPLACE "            small,\\n" "            smallIcon,\\n" _juce_push_patched "${_juce_push_content}")
+  endif()
+  if(_juce_push_patched STREQUAL _juce_push_content)
+    message(FATAL_ERROR "Could not apply JUCE 7 Windows SDK small-macro compatibility patch")
+  endif()
+  file(WRITE "${_juce_push_header}" "${_juce_push_patched}")
+endif()
+
 juce_add_gui_app(dBStudio
   PRODUCT_NAME "dB Studio"
   COMPANY_NAME "dB Studio"
@@ -73,10 +90,6 @@ if(DBSTUDIO_WINDOWS_81_TARGET)
   target_compile_definitions(dBStudio PRIVATE
     WINVER=0x0603
     _WIN32_WINNT=0x0603
-    # Windows SDK's rpcndr.h defines "small" as a macro. JUCE 7 uses
-    # "small" as an enum member in PushNotifications; self-definition keeps
-    # the identifier intact and prevents the SDK macro collision.
-    small=small
   )
 endif()
 
