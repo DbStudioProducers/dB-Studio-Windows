@@ -28,6 +28,9 @@ class NativeArchitectureChecks(unittest.TestCase):
         self.assertIn('option(DBSTUDIO_WINDOWS_81_TARGET', self.cmake)
         self.assertIn('DBSTUDIO_JUCE_VERSION STREQUAL "7.0.12"', self.cmake)
         self.assertIn('WINVER=0x0603 _WIN32_WINNT=0x0603', self.cmake)
+        self.assertIn('small=small', self.cmake)
+        self.assertNotIn('FontOptions', self.main_component)
+        self.assertIn('juce::Font(27.0f, juce::Font::bold)', self.main_component)
 
     def test_audio_architecture_has_32_inputs_and_16_stereo_mixes(self):
         self.assertIn('constexpr int kInputs = 32;', self.renderer)
