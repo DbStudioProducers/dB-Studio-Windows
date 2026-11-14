@@ -47,7 +47,7 @@ if(DBSTUDIO_WINDOWS_81_TARGET)
   # while preserving its ordinal value and all JUCE 8 sources.
   set(_juce_push_header "${juce_SOURCE_DIR}/modules/juce_gui_extra/misc/juce_PushNotifications.h")
   file(READ "${_juce_push_header}" _juce_push_content)
-  string(REPLACE "            small,\\r\\n" "            smallIcon,\\r\\n" _juce_push_patched "${_juce_push_content}")
+  string(REPLACE "            small," "            smallIcon," _juce_push_patched "${_juce_push_content}")
   if(_juce_push_patched STREQUAL _juce_push_content)
     string(REPLACE "            small,\\n" "            smallIcon,\\n" _juce_push_patched "${_juce_push_content}")
   endif()
