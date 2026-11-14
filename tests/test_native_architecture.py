@@ -17,9 +17,17 @@ class NativeArchitectureChecks(unittest.TestCase):
         self.assertIn('actions/checkout@v7', workflow)
         self.assertIn('actions/setup-python@v7', workflow)
         self.assertIn('actions/upload-artifact@v7', workflow)
+        self.assertIn('branches: [main]', workflow)
+        self.assertNotIn('"feature/**"', workflow)
 
-    def test_juce_8_is_pinned(self):
-        self.assertIn('GIT_TAG 8.0.6', self.cmake)
+    def test_juce_8_is_the_primary_pinned_build(self):
+        self.assertIn('set(DBSTUDIO_JUCE_VERSION "8.0.6" CACHE STRING', self.cmake)
+        self.assertIn('GIT_TAG ${DBSTUDIO_JUCE_VERSION}', self.cmake)
+
+    def test_windows_81_compatibility_is_isolated_to_juce_7(self):
+        self.assertIn('option(DBSTUDIO_WINDOWS_81_TARGET', self.cmake)
+        self.assertIn('DBSTUDIO_JUCE_VERSION STREQUAL "7.0.12"', self.cmake)
+        self.assertIn('WINVER=0x0603 _WIN32_WINNT=0x0603', self.cmake)
 
     def test_audio_architecture_has_32_inputs_and_16_stereo_mixes(self):
         self.assertIn('constexpr int kInputs = 32;', self.renderer)
