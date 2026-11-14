@@ -22,8 +22,10 @@ try {
     $expected = ((Get-Content -Raw $hashPath) -split '\s+')[0].Trim().ToLowerInvariant()
     $actual = (Get-FileHash -Algorithm SHA256 $zipPath).Hash.ToLowerInvariant()
     if ($expected -notmatch '^[0-9a-f]{64}$' -or $actual -ne $expected) { throw "Falha na verificação SHA-256. Nenhum arquivo foi alterado." }
-    Expand-Archive -LiteralPath $zipPath -DestinationPath (Join-Path $temp "expanded") -Force
-    $newExe = Get-ChildItem -Path (Join-Path $temp "expanded") -Filter "dB Studio.exe" -Recurse | Select-Object -First 1
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $expandedPath = Join-Path $temp "expanded"
+    [IO.Compression.ZipFile]::ExtractToDirectory($zipPath, $expandedPath)
+    $newExe = Get-ChildItem -Path ($expandedPath) -Filter "dB Studio.exe" -Recurse | Select-Object -First 1
     if (-not $newExe) { throw "O pacote não contém dB Studio.exe." }
     while (Get-Process -Name $appName -ErrorAction SilentlyContinue) { Start-Sleep -Seconds 1 }
     $backup = "$exePath.previous"
