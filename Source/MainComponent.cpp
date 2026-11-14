@@ -69,6 +69,25 @@ MainComponent::MainComponent() {
         options.launchAsync();
     };
     addAndMakeVisible(devicesButton_);
+    updateButton_.onClick = [this] {
+        const auto executable = juce::File::getSpecialLocation(juce::File::currentExecutableFile);
+        const auto updaterScript = executable.getSiblingFile("update-dbstudio.ps1");
+        const juce::File powershell("C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe");
+        if (!updaterScript.existsAsFile() || !powershell.existsAsFile()) {
+            juce::AlertWindow::showMessageBoxAsync(juce::MessageBoxIconType::WarningIcon,
+                "Atualização", "O atualizador não está disponível nesta instalação.");
+            return;
+        }
+        const auto arguments = "-NoProfile -ExecutionPolicy Bypass -File \"" +
+            updaterScript.getFullPathName() + "\" -InstallDir \"" +
+            executable.getParentDirectory().getFullPathName() + "\"";
+        if (powershell.startAsProcess(arguments))
+            juce::JUCEApplication::getInstance()->quit();
+        else
+            juce::AlertWindow::showMessageBoxAsync(juce::MessageBoxIconType::WarningIcon,
+                "Atualização", "Não foi possível iniciar o atualizador do Windows.");
+    };
+    addAndMakeVisible(updateButton_);
     assignButton_.onClick = [this] { promptAssignDevice(); };
     addAndMakeVisible(assignButton_);
     renameButton_.onClick = [this] { promptRenameDevice(); };
@@ -171,7 +190,8 @@ void MainComponent::resized() {
     auto header = area.removeFromTop(44);
     title_.setBounds(header.removeFromLeft(220));
     status_.setBounds(header.removeFromLeft(280));
-    devicesButton_.setBounds(header.removeFromRight(150).reduced(2));
+    devicesButton_.setBounds(header.removeFromRight(140).reduced(2));
+    updateButton_.setBounds(header.removeFromRight(140).reduced(2));
     area.removeFromTop(8);
 
     auto controls = area.removeFromTop(36);
