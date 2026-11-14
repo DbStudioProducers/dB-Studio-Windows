@@ -29,7 +29,9 @@ class NativeArchitectureChecks(unittest.TestCase):
         self.assertIn('DBSTUDIO_JUCE_VERSION STREQUAL "7.0.12"', self.cmake)
         self.assertIn('WINVER=0x0603', self.cmake)
         self.assertIn('_WIN32_WINNT=0x0603', self.cmake)
-        self.assertIn('small=small', self.cmake)
+        self.assertIn('smallIcon', self.cmake)
+        self.assertIn('JUCE 7 Windows SDK small-macro compatibility patch', self.cmake)
+        self.assertNotIn('small=small', self.cmake)
         self.assertNotIn('FontOptions', self.main_component)
         self.assertIn('juce::Font(27.0f, juce::Font::bold)', self.main_component)
 
