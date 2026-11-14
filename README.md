@@ -43,7 +43,7 @@ ctest --test-dir build -C Release --output-on-failure
 cmake --build build --config Release --target dBStudio --parallel 2
 ```
 
-GitHub Actions runs this sequence in one Windows 2022 job to avoid a second hosted-runner allocation: Python syntax, native architecture checks, Python regression tests and the UDP loopback virtual lab; then CMake configuration, all four C++ test executables, CTest, and only after those checks pass, the Windows application build and artifact upload. The workflow does not use a separate prerequisite job. CMake fetches the pinned JUCE 8.0.6 source.
+GitHub Actions runs this sequence in one Windows 2022 job: Python syntax, native architecture checks, Python regression tests and the UDP loopback virtual lab; then CMake configuration, all five C++ test executables, CTest, and only after those checks pass, the primary Windows application build. It then performs a separate compatibility build with JUCE 7.0.12 and Windows 8.1 target macros. The primary build remains pinned to JUCE 8.0.6. Feature branches are validated through the pull-request event only, avoiding duplicate push + pull-request builds.
 
 ## Implemented native foundation
 
@@ -65,7 +65,7 @@ Bluetooth headphone support is deferred. Android P2/USB-C automatic output routi
 
 ## Compatibility
 
-The initial native target is Windows 10/11 x64. Windows 8.1 compatibility is not established. JUCE 8.0.6 remains pinned. WASAPI/DirectSound/ASIO availability depends on build configuration, installed drivers and hardware. ASIO SDK licensing must be evaluated before distribution. Dante, AES67, AVB and vendor-specific Ethernet protocols require separate integration and validation.
+The primary native target is Windows 10 version 1607 or later, using JUCE 8.0.6. JUCE 8 does not support Windows 8.1 as a deployment target. A separate experimental Windows 8.1 compatibility build uses JUCE 7.0.12 with `WINVER=0x0603` and `_WIN32_WINNT=0x0603`; it does not downgrade or replace the primary JUCE 8 build. This legacy artifact must pass its own CI build before it is considered usable, and it must not be distributed until JUCE 7 licensing is reviewed. JUCE 7.0.12 uses its own JUCE 7 EULA/licensing tiers; commercial distribution may require an applicable JUCE licence or GPL compliance. WASAPI/DirectSound/ASIO availability depends on build configuration, installed drivers and hardware. ASIO SDK licensing must be evaluated before distribution. Dante, AES67, AVB and vendor-specific Ethernet protocols require separate integration and validation.
 
 A successful CI build validates compilation, not end-to-end Wi-Fi latency, packet loss, mobile playback or physical hardware.
 
