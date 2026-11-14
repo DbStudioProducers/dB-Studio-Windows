@@ -67,3 +67,17 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+      - name: Configure JUCE 7 Windows 8.1 compatibility build
+        run: cmake -S . -B build-win81 -A x64 -DBUILD_TESTING=OFF -DDBSTUDIO_JUCE_VERSION=7.0.12 -DDBSTUDIO_WINDOWS_81_TARGET=ON
+
+      - name: Compile Windows 8.1 compatibility application
+        run: cmake --build build-win81 --config Release --target dBStudio --parallel 2
+
+      - name: Upload Windows 8.1 compatibility application
+        uses: actions/upload-artifact@v7
+        with:
+          name: dB-Studio-0.5.0-Legacy-Windows-8.1
+          path: build-win81/dBStudio_artefacts/Release/
+          if-no-files-found: error
+          retention-days: 30
+
