@@ -39,6 +39,7 @@ private:
     juce::Label outputMeterLabel_{"outputMeterLabel", "SAÍDA:"};
     LevelMeter outputMeter_;
     juce::TextEditor diagnostics_;
+    juce::Viewport channelViewport_;
     juce::Component channelGrid_;
     std::array<juce::Label, AudioEngine::kInputChannels> channelLabels_;
     std::array<LevelMeter, AudioEngine::kInputChannels> inputMeters_;
