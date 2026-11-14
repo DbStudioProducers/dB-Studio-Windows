@@ -30,7 +30,8 @@ MainComponent::MainComponent() {
     }
     setSize(1320, 850);
     title_.setText("dB STUDIO", juce::dontSendNotification);
-    title_.setFont(juce::Font(juce::FontOptions(27.0f, juce::Font::bold)));
+    // This constructor is supported by JUCE 7 and JUCE 8.
+    title_.setFont(juce::Font(27.0f, juce::Font::bold));
     title_.setColour(juce::Label::textColourId, juce::Colours::white);
     addAndMakeVisible(title_);
 
