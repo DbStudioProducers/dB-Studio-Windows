@@ -28,7 +28,8 @@ MainComponent::MainComponent() {
         if (loaded != AuxAssignmentRegistry::Result::success)
             status_.setText("AVISO: cadastro AUX salvo inválido; não foi carregado.", juce::dontSendNotification);
     }
-    setSize(1320, 850);
+    setSize(1180, 760);
+    setMinimumSize(960, 650);
     title_.setText("dB STUDIO", juce::dontSendNotification);
     // This constructor is supported by JUCE 7 and JUCE 8.
     title_.setFont(juce::Font(27.0f, juce::Font::bold));
@@ -125,7 +126,10 @@ MainComponent::MainComponent() {
         };
         channelGrid_.addAndMakeVisible(solo);
     }
-    addAndMakeVisible(channelGrid_);
+    channelViewport_.setViewedComponent(&channelGrid_, false);
+    channelViewport_.setScrollBarsShown(true, false);
+    channelViewport_.setScrollOnDragEnabled(true);
+    addAndMakeVisible(channelViewport_);
 
     deviceSummary_.setColour(juce::Label::textColourId, muted);
     deviceSummary_.setJustificationType(juce::Justification::centredLeft);
@@ -166,30 +170,47 @@ void MainComponent::paint(juce::Graphics& g) {
 }
 
 void MainComponent::resized() {
-    auto area = getLocalBounds().reduced(28);
-    auto header = area.removeFromTop(48);
-    title_.setBounds(header.removeFromLeft(260));
-    status_.setBounds(header.removeFromLeft(330));
-    devicesButton_.setBounds(header.removeFromRight(170).reduced(2));
-    area.removeFromTop(14);
-    auto controls = area.removeFromTop(38);
-    mixLabel_.setBounds(controls.removeFromLeft(130));
-    mixSelector_.setBounds(controls.removeFromLeft(150));
-    assignButton_.setBounds(controls.removeFromLeft(125).reduced(2));
-    renameButton_.setBounds(controls.removeFromLeft(105).reduced(2));
-    outputMeterLabel_.setBounds(controls.removeFromLeft(62));
-    outputMeter_.setBounds(controls.removeFromLeft(110).reduced(2, 12));
+    auto area = getLocalBounds().reduced(20);
+    auto header = area.removeFromTop(44);
+    title_.setBounds(header.removeFromLeft(220));
+    status_.setBounds(header.removeFromLeft(280));
+    devicesButton_.setBounds(header.removeFromRight(150).reduced(2));
+    area.removeFromTop(8);
+
+    auto controls = area.removeFromTop(36);
+    mixLabel_.setBounds(controls.removeFromLeft(116));
+    mixSelector_.setBounds(controls.removeFromLeft(132));
+    assignButton_.setBounds(controls.removeFromLeft(118).reduced(2));
+    renameButton_.setBounds(controls.removeFromLeft(100).reduced(2));
+    outputMeterLabel_.setBounds(controls.removeFromLeft(58));
+    outputMeter_.setBounds(controls.removeFromLeft(92).reduced(2, 10));
     deviceSummary_.setBounds(controls);
-    area.removeFromTop(12);
-    const auto gridBounds = area.removeFromTop(590);
-    channelGrid_.setBounds(gridBounds);
+
+    area.removeFromTop(8);
+    area.removeFromBottom(4);
+    const int footerHeight = 22;
+    const int diagnosticsHeight = 48;
+    footer_.setBounds(area.removeFromBottom(footerHeight));
+    area.removeFromBottom(4);
+    diagnostics_.setBounds(area.removeFromBottom(diagnosticsHeight));
+    area.removeFromBottom(6);
+    channelViewport_.setBounds(area);
+
+    const int gridWidth = juce::jmax(1, channelViewport_.getWidth() - channelViewport_.getScrollBarThickness());
+    const int columns = juce::jlimit(1, 8, gridWidth / 220);
+    const int rows = (AudioEngine::kInputChannels + columns - 1) / columns;
+    constexpr int cellGap = 8;
+    constexpr int cellHeight = 142;
+    const int cellWidth = (gridWidth - (columns - 1) * cellGap) / columns;
+    channelGrid_.setSize(gridWidth, rows * (cellHeight + cellGap));
     const auto gridArea = channelGrid_.getLocalBounds();
-    const int cellW = (gridArea.getWidth() - 24) / 8;
-    const int cellH = (gridArea.getHeight() - 18) / 4;
+
     for (int i = 0; i < AudioEngine::kInputChannels; ++i) {
-        const int col = i % 8, row = i / 8;
-        auto cell = juce::Rectangle<int>(gridArea.getX() + col * (cellW + 3),
-                                         gridArea.getY() + row * (cellH + 4), cellW, cellH);
+        const int col = i % columns;
+        const int row = i / columns;
+        auto cell = juce::Rectangle<int>(gridArea.getX() + col * (cellWidth + cellGap),
+                                         gridArea.getY() + row * (cellHeight + cellGap),
+                                         cellWidth, cellHeight).reduced(5, 3);
         channelLabels_[static_cast<size_t>(i)].setBounds(cell.removeFromTop(20));
         inputMeters_[static_cast<size_t>(i)].setBounds(cell.removeFromTop(8).reduced(5, 0));
         auto buttonRow = cell.removeFromBottom(24);
@@ -198,9 +219,6 @@ void MainComponent::resized() {
         panSliders_[static_cast<size_t>(i)].setBounds(cell.removeFromBottom(22).reduced(5, 0));
         gainSliders_[static_cast<size_t>(i)].setBounds(cell.reduced(12, 0));
     }
-    area.removeFromTop(6);
-    diagnostics_.setBounds(area.removeFromTop(55));
-    footer_.setBounds(area);
 }
 
 void MainComponent::timerCallback() {
