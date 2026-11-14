@@ -30,6 +30,7 @@ private:
     AudioEngine engine_;
     juce::Label title_, status_, deviceSummary_, footer_;
     juce::TextButton devicesButton_{"ÁUDIO"};
+    juce::TextButton updateButton_{"ATUALIZAR"};
     juce::TextButton assignButton_{"ATRIBUIR AUX"};
     juce::TextButton renameButton_{"RENOMEAR"};
     AuxAssignmentRegistry assignments_;
