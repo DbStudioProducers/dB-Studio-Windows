@@ -70,7 +70,14 @@ target_compile_definitions(dBStudio PRIVATE
 
 if(DBSTUDIO_WINDOWS_81_TARGET)
   # Windows 8.1 is version 6.3. Keep this isolated to the JUCE 7 legacy build.
-  target_compile_definitions(dBStudio PRIVATE WINVER=0x0603 _WIN32_WINNT=0x0603)
+  target_compile_definitions(dBStudio PRIVATE
+    WINVER=0x0603
+    _WIN32_WINNT=0x0603
+    # Windows SDK's rpcndr.h defines "small" as a macro. JUCE 7 uses
+    # "small" as an enum member in PushNotifications; self-definition keeps
+    # the identifier intact and prevents the SDK macro collision.
+    small=small
+  )
 endif()
 
 target_link_libraries(dBStudio PRIVATE
