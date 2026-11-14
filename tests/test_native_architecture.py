@@ -34,6 +34,9 @@ class NativeArchitectureChecks(unittest.TestCase):
         self.assertNotIn('small=small', self.cmake)
         self.assertNotIn('FontOptions', self.main_component)
         self.assertIn('juce::Font(27.0f, juce::Font::bold)', self.main_component)
+        main_cpp = (ROOT / 'Source' / 'Main.cpp').read_text(encoding='utf-8')
+        self.assertIn('setTitleBarButtonsRequired(allButtons, false)', main_cpp)
+        self.assertIn('setResizeLimits(960, 650', main_cpp)
 
     def test_audio_architecture_has_32_inputs_and_16_stereo_mixes(self):
         self.assertIn('constexpr int kInputs = 32;', self.renderer)
@@ -84,8 +87,13 @@ class NativeArchitectureChecks(unittest.TestCase):
         self.assertEqual(positions, sorted(positions))
 
     def test_channel_controls_are_attached_to_a_sized_grid_container(self):
-        self.assertIn('channelGrid_.setBounds(gridBounds);', self.main_component)
+        self.assertIn('channelViewport_.setViewedComponent(&channelGrid_, false);', self.main_component)
+        self.assertIn('channelGrid_.setSize(gridWidth, rows * (cellHeight + cellGap));', self.main_component)
+        self.assertIn('gridWidth / 220', self.main_component)
         self.assertIn('channelGrid_.getLocalBounds()', self.main_component)
+
+    def test_asio_backend_is_enabled_for_windows_audio_drivers(self):
+        self.assertIn('JUCE_ASIO=1', self.cmake)
 
     def test_audio_packet_codec_is_bounded_and_has_dedicated_ctest(self):
         codec = (ROOT / 'Source' / 'AudioPacketCodec.h').read_text(encoding='utf-8')
