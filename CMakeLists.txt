@@ -103,3 +103,10 @@ target_link_libraries(dBStudio PRIVATE
   juce::juce_recommended_lto_flags
   juce::juce_recommended_warning_flags
 )
+
+add_custom_command(TARGET dBStudio POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E copy_if_different
+          "${CMAKE_SOURCE_DIR}/scripts/update-dbstudio.ps1"
+          "$<TARGET_FILE_DIR:dBStudio>/update-dbstudio.ps1"
+  COMMENT "Copying in-place update helper beside the application"
+)
