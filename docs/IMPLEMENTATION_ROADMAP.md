@@ -1,6 +1,6 @@
 # dB Studio — plano mestre de implementação
 
-Estado em 10/11/2026: fundação nativa JUCE 8.0.6 em desenvolvimento; CI nativa completa aprovada no commit `38d363e`. Este plano organiza o escopo acordado; não declara como concluídos os módulos ausentes. Requisitos de segurança detalhados em [SECURITY_AND_TRANSPORT.md](SECURITY_AND_TRANSPORT.md). Avaliação documental das bibliotecas QUIC em [QUIC_LIBRARY_EVALUATION.md](QUIC_LIBRARY_EVALUATION.md).
+Estado em 14/11/2026: fundação nativa JUCE 8.0.6 em desenvolvimento; CI nativa completa aprovada no commit `8fcbd23`. O alvo principal é Windows 10 1607+; uma variante isolada JUCE 7.0.12 para Windows 8.1 está em validação e não substitui JUCE 8. Este plano organiza o escopo acordado; não declara como concluídos os módulos ausentes. Requisitos de segurança detalhados em [SECURITY_AND_TRANSPORT.md](SECURITY_AND_TRANSPORT.md). Avaliação documental das bibliotecas QUIC em [QUIC_LIBRARY_EVALUATION.md](QUIC_LIBRARY_EVALUATION.md).
 
 ## Produto e limites
 - Servidor desktop Windows/macOS como autoridade de áudio, sessões, usuários e atribuições.
@@ -20,9 +20,11 @@ Estado em 10/11/2026: fundação nativa JUCE 8.0.6 em desenvolvimento; CI nativa
 2. Diagnosticar inicialização dos runners e expor falhas em logs/anotações.
 3. Validar arquitetura, sintaxe Python, testes Python e laboratório UDP.
 4. Compilar executáveis C++ de teste e executar CTest.
-5. Somente depois compilar o desktop Windows e publicar artefato.
-6. Guardar logs, artefatos, hashes e retenção para auditoria.
-Aceite: execução completa, todos os testes aprovados e artefato verificável. Falha antes do runner iniciar não conta como teste de código.
+5. Somente depois compilar o desktop Windows com JUCE 8.0.6 e publicar artefato.
+6. Construir separadamente a variante Windows 8.1 com JUCE 7.0.12, sem alterar a versão principal; não distribuir até validar CI, execução em Windows 8.1 e licença.
+7. Evitar duplicidade de execuções: branches de feature validam pelo evento pull_request; push valida main.
+8. Guardar logs, artefatos, hashes e retenção para auditoria.
+Aceite: execução completa, todos os testes aprovados e artefatos verificáveis. Falha antes do runner iniciar não conta como teste de código.
 
 ## Fase 1 — Motor de áudio desktop
 1. Validar seleção/troca de interfaces, canais disponíveis, taxa e bloco.
@@ -103,10 +105,11 @@ Aceite: alinhamento, decoder independente, stress com streaming e recuperação.
 Aceite: nenhum bloqueador crítico/alto aberto, transporte criptografado, testes de carga e teste físico aprovados.
 
 ## Fase 9 — Distribuição
-1. Instalador Windows assinado quando houver certificado; requisitos/drivers documentados.
-2. macOS com assinatura/notarização.
-3. Android/iOS conforme contas e regras das lojas.
-4. Notas, hashes, matriz de compatibilidade, limitações e rollback.
+1. Publicar o alvo principal Windows 10 1607+ / JUCE 8.0.6; publicar a variante Windows 8.1 / JUCE 7.0.12 somente se o build, a execução em hardware/VM e a licença forem aprovados.
+2. Instalador Windows assinado quando houver certificado; requisitos/drivers documentados.
+3. macOS com assinatura/notarização.
+4. Android/iOS conforme contas e regras das lojas.
+5. Notas, hashes, matriz de compatibilidade, limitações e rollback.
 
 ## Regras de execução
 - Cada fase gera commits pequenos, revisão de diff e testes específicos.
