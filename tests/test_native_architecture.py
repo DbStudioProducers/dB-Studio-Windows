@@ -27,7 +27,8 @@ class NativeArchitectureChecks(unittest.TestCase):
     def test_windows_81_compatibility_is_isolated_to_juce_7(self):
         self.assertIn('option(DBSTUDIO_WINDOWS_81_TARGET', self.cmake)
         self.assertIn('DBSTUDIO_JUCE_VERSION STREQUAL "7.0.12"', self.cmake)
-        self.assertIn('WINVER=0x0603 _WIN32_WINNT=0x0603', self.cmake)
+        self.assertIn('WINVER=0x0603', self.cmake)
+        self.assertIn('_WIN32_WINNT=0x0603', self.cmake)
         self.assertIn('small=small', self.cmake)
         self.assertNotIn('FontOptions', self.main_component)
         self.assertIn('juce::Font(27.0f, juce::Font::bold)', self.main_component)
