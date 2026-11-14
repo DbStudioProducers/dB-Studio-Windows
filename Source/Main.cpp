@@ -22,9 +22,15 @@ private:
         explicit MainWindow(const juce::String& name)
             : DocumentWindow(name, background, allButtons) {
             setUsingNativeTitleBar(true);
-            setContentOwned(new MainComponent(), true);
-            centreWithSize(getWidth(), getHeight());
+            setTitleBarButtonsRequired(allButtons, false);
             setResizable(true, true);
+            setResizeLimits(960, 650, 8192, 8192);
+            setContentOwned(new MainComponent(), true);
+            const auto* display = juce::Desktop::getInstance().getDisplays().getPrimaryDisplay();
+            const auto workArea = display != nullptr ? display->userArea : juce::Rectangle<int>(0, 0, 1280, 800);
+            const int initialWidth = juce::jmin(1500, juce::jmax(960, workArea.getWidth() - 80));
+            const int initialHeight = juce::jmin(950, juce::jmax(650, workArea.getHeight() - 80));
+            centreWithSize(initialWidth, initialHeight);
             setVisible(true);
         }
         void closeButtonPressed() override { juce::JUCEApplication::getInstance()->systemRequestedQuit(); }
