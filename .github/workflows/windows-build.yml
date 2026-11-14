@@ -48,7 +48,7 @@ jobs:
         run: python run_virtual_lab.py --seconds 1.5 --rate 48000 --blocksize 128
 
       - name: Configure JUCE native application and core tests
-        run: cmake -S . -B build -A x64 -DBUILD_TESTING=ON
+        run: cmake -S . -B build -A x64 -DBUILD_TESTING=ON -DDBSTUDIO_ENABLE_ASIO=OFF
 
       - name: Build core verification tests
         run: cmake --build build --config Release --target dBStudioCoreTests dBStudioMixTests dBStudioQueueTests dBStudioAuthorizationTests dBStudioPacketTests
@@ -68,7 +68,7 @@ jobs:
           retention-days: 30
 
       - name: Configure JUCE 7 Windows 8.1 compatibility build
-        run: cmake -S . -B build-win81 -A x64 -DBUILD_TESTING=OFF '-DDBSTUDIO_JUCE_VERSION=7.0.12' -DDBSTUDIO_WINDOWS_81_TARGET=ON
+        run: cmake -S . -B build-win81 -A x64 -DBUILD_TESTING=OFF '-DDBSTUDIO_JUCE_VERSION=7.0.12' -DDBSTUDIO_WINDOWS_81_TARGET=ON -DDBSTUDIO_ENABLE_ASIO=OFF
 
       - name: Compile Windows 8.1 compatibility application
         run: cmake --build build-win81 --config Release --target dBStudio --parallel 2
