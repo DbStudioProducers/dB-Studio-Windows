@@ -95,6 +95,16 @@ class NativeArchitectureChecks(unittest.TestCase):
     def test_asio_backend_is_enabled_for_windows_audio_drivers(self):
         self.assertIn('JUCE_ASIO=1', self.cmake)
 
+    def test_updater_is_packaged_and_hash_verified(self):
+        updater = (ROOT / 'scripts' / 'update-dbstudio.ps1').read_text(encoding='utf-8')
+        self.assertIn('releases/latest', updater)
+        self.assertIn('Get-FileHash -Algorithm SHA256', updater)
+        self.assertIn('ZipFile]::ExtractToDirectory', updater)
+        self.assertIn('Move-Item -LiteralPath $exePath -Destination $backup', updater)
+        self.assertIn('Move-Item -LiteralPath $backup -Destination $exePath', updater)
+        self.assertIn('update-dbstudio.ps1', self.cmake)
+        self.assertIn('updateButton_', self.main_component)
+
     def test_audio_packet_codec_is_bounded_and_has_dedicated_ctest(self):
         codec = (ROOT / 'Source' / 'AudioPacketCodec.h').read_text(encoding='utf-8')
         self.assertRegex(codec, r'kMaxDatagramBytes\s*=\s*1200')
