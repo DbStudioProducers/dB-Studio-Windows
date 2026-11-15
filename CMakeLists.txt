@@ -11,6 +11,13 @@ set(DBSTUDIO_JUCE_VERSION "8.0.6" CACHE STRING "JUCE version used for this build
 option(DBSTUDIO_WINDOWS_81_TARGET "Build the legacy Windows 8.1-compatible variant" OFF)
 option(DBSTUDIO_ENABLE_ASIO "Enable ASIO host support (requires licensed Steinberg ASIO SDK headers)" OFF)
 set(DBSTUDIO_ASIO_SDK_COMMON_DIR "" CACHE PATH "Path to the Steinberg ASIO SDK common directory (must contain iasiodrv.h)")
+
+# This proprietary distribution must not compile or redistribute Steinberg ASIO
+# components until the applicable licensing terms have been confirmed.
+if(DBSTUDIO_ENABLE_ASIO)
+  message(FATAL_ERROR "ASIO distribution is disabled until the applicable Steinberg license is confirmed")
+endif()
+
 if(DBSTUDIO_WINDOWS_81_TARGET AND NOT DBSTUDIO_JUCE_VERSION STREQUAL "7.0.12")
   message(FATAL_ERROR "The Windows 8.1 compatibility target requires JUCE 7.0.12")
 endif()
