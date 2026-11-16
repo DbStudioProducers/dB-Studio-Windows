@@ -24,7 +24,7 @@ class MainActivity : Activity() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(24, 28, 24, 24)
-            setBackgroundColor(background)
+            setBackgroundColor(this@MainActivity.background)
         }
 
         root.addView(label("dB STUDIO", 25, Color.WHITE, true))
