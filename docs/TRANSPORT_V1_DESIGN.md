@@ -68,6 +68,16 @@ Mensagens versionadas, enquadradas e limitadas por tamanho em streams confiávei
 
 Cada comando inclui ID monotônico/único, sessão, versão, alvo e valor validado. O servidor verifica papel, AUX, faixa de valores e estado da sessão, aplica o comando e devolve ACK com estado aplicado. O cliente só mostra estado confirmado após ACK; estado pendente deve ser visualmente distinto. Master é a única role autorizada a enviar Talkback e selecionar destinos permitidos.
 
+
+### Talkback — autorização e distribuição
+
+- Somente uma sessão autenticada com role `MASTER` pode emitir `TALKBACK_PTT_DOWN`, `TALKBACK_PTT_UP` e selecionar os AUX de destino. A autorização é validada no servidor em cada comando; ocultar controles na UI não é uma medida de segurança suficiente.
+- Sessões `MUSICIAN` não recebem controles, destinos ou comandos de transmissão Talkback. Qualquer tentativa de enviar esses comandos deve ser rejeitada pelo servidor, registrada sem segredos e não pode alterar estado de áudio.
+- O áudio de Talkback é roteado pelo servidor para o canal de Talkback designado dentro de cada AUX selecionado. O canal precisa estar ativo para que o músico daquele AUX o ouça. A sessão do músico recebe somente o stream do seu próprio AUX; não recebe canal de retorno nem permissão para abrir/fechar o Talkback.
+- PTT é momentâneo: a rota abre enquanto o Master mantém o botão pressionado e fecha em `PTT_UP`, desconexão, expiração de sessão ou timeout de segurança. Perda de estado não pode deixar o Talkback aberto.
+- O servidor valida que cada AUX de destino existe e que a sessão Master tem permissão para controlá-lo. A seleção de destinos enviada pelo cliente é uma solicitação, nunca autoridade.
+- A mixagem/roteamento do Talkback não pode permitir que uma sessão de músico altere o conteúdo ou o estado do canal Talkback de outro AUX.
+
 ## 6. Buffer e sincronização
 
 - Buffer de jitter pré-alocado e limitado por frames/tempo; sem crescimento ilimitado.
