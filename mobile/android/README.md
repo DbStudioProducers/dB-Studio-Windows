@@ -6,7 +6,7 @@ Status: **local audio-output test build**. This APK now has working controls to 
 
 - Install and launch on Android 8.0 (API 26) or newer.
 - Start and stop a local stereo sine-wave test tone.
-- Adjust reference frequency (220–1265 Hz) and limited test level (up to 6%).
+- Adjust reference frequency (220–1265 Hz) and limited test level (up to 3%).
 - Inspect output devices recognized by Android (wired/P2, USB, built-in speaker and Bluetooth where exposed by the OS).
 
 Start with the phone volume low and preferably use headphones. Stop the tone before disconnecting headphones. This is only a local output-path check, not a calibrated level or latency test.
