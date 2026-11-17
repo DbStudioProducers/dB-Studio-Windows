@@ -61,7 +61,7 @@ class MainActivity : Activity() {
         header.addView(metric("CONEXÃO", "Desconectado • transporte indisponível"))
         root.addView(header)
 
-        val scroll = ScrollView(this).apply { fillViewport = true }
+        val scroll = ScrollView(this).apply { isFillViewport = true }
         val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(16, 4, 16, 16)
