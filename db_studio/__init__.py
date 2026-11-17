@@ -1,1 +1,1 @@
-"""dB Studio 0.3.1 virtual lab."""
+"""dB Studio virtual-lab test utilities; not production audio transport."""
