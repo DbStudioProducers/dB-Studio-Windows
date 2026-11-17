@@ -75,6 +75,9 @@ Visual direction: Live Control, balanced density, stage-readable dark interface
 ### Permission and interaction rules
 
 - A musician controls exactly one server-assigned AUX.
+- Talkback and PTT controls, destinations, and commands are exclusive to authenticated Master sessions; they must not appear anywhere in a musician profile.
+- A musician receives Talkback only as audio mixed/routed by the server into the musician's assigned AUX through its designated Talkback channel while that AUX channel is active. The musician has no Talkback transmit, routing, destination-selection, or enable/disable control.
+- The Master alone selects destination AUX mixes and momentarily opens the Talkback route by holding PTT; release, disconnect, session expiry, or safety timeout closes it.
 - No AUX selector, no access to another musician's mix, and no Master Talkback PTT.
 - Switching channel banks changes visibility only; it must never reset mix values.
 - Touch targets and fader travel must be suitable for one-handed stage use.
