@@ -1,6 +1,6 @@
 # dB Studio — plano mestre de implementação
 
-Estado em 14/11/2026: fundação nativa JUCE 8.0.6 em desenvolvimento; CI nativa completa aprovada no commit `8fcbd23`. O alvo principal é Windows 10 1607+; uma variante isolada JUCE 7.0.12 para Windows 8.1 está em validação e não substitui JUCE 8. Este plano organiza o escopo acordado; não declara como concluídos os módulos ausentes. Requisitos de segurança detalhados em [SECURITY_AND_TRANSPORT.md](SECURITY_AND_TRANSPORT.md). Avaliação documental das bibliotecas QUIC em [QUIC_LIBRARY_EVALUATION.md](QUIC_LIBRARY_EVALUATION.md).
+Estado em 14/11/2026: fundação nativa JUCE 8.0.6 em desenvolvimento; CI nativa completa aprovada no commit `8fcbd23`. O alvo principal é Windows 10 1607+; uma variante isolada JUCE 7.0.12 para Windows 8.1 está em validação e não substitui JUCE 8. Este plano organiza o escopo acordado; não declara como concluídos os módulos ausentes. Requisitos de segurança detalhados em [SECURITY_AND_TRANSPORT.md](SECURITY_AND_TRANSPORT.md). Avaliação documental das bibliotecas QUIC em [QUIC_LIBRARY_EVALUATION.md](QUIC_LIBRARY_EVALUATION.md). Descoberta IP e implantação Wi-Fi em [WIFI_IP_DISCOVERY_V1.md](WIFI_IP_DISCOVERY_V1.md).
 
 ## Produto e limites
 - Servidor desktop Windows/macOS como autoridade de áudio, sessões, usuários e atribuições.
@@ -42,8 +42,10 @@ Aceite: testes determinísticos, callback dentro do orçamento e limite de canai
 4. [Especificado] Identidade por pareamento de uso único, credenciais por dispositivo, validação do servidor, armazenamento seguro e revogação.
 5. [Especificado] Autorização server-side por ação e AUX; o pacote v1 é payload e não autentica por si só.
 6. [Avaliação documental concluída] XQUIC é a candidata inicial para POC por cobrir documentalmente as quatro plataformas e expor API DATAGRAM. Ainda não é dependência aprovada. Ver [QUIC_LIBRARY_EVALUATION.md](QUIC_LIBRARY_EVALUATION.md).
-7. Executar POC XQUIC isolada: builds Windows/macOS/Android/iOS, QUIC v1, DATAGRAM bidirecional, validação de certificados, autenticação de dispositivo, 0-RTT desabilitado, licença/dependências e testes adversariais.
-8. Só após POC aprovada, fixar dependência e implementar transporte atrás de interface isolada.
+7. [Especificado] Descoberta LAN DNS-SD/mDNS, endpoint IP dinâmico, fallback QR/manual, portas/firewall restritos e requisitos do AP; ver WIFI_IP_DISCOVERY_V1.md.
+8. Executar POC XQUIC isolada: builds Windows/macOS/Android/iOS, QUIC v1, DATAGRAM bidirecional, validação de certificados, autenticação de dispositivo, 0-RTT desabilitado, licença/dependências e testes adversariais.
+9. Implementar descoberta DNS-SD/mDNS e seleção explícita de interface no Desktop; implementar descoberta/pareamento no Android/iOS com expiração, fallback manual e testes de rede.
+10. Só após POC aprovada, fixar dependência e implementar transporte atrás de interface isolada.
 9. Implementar sender como consumidor único da fila, com acquire/release seguro em todos os caminhos e backpressure limitado.
 10. Implementar jitter buffer, reordenação, descarte de pacotes atrasados, métricas, heartbeat e reconexão.
 11. Desabilitar 0-RTT para operações com efeito; proteger contra replay, mensagens duplicadas, sessões antigas e abuso.
