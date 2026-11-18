@@ -43,7 +43,7 @@ class DbStudioDiscovery(context: Context, private val listener: Listener) {
     private val mainHandler = Handler(Looper.getMainLooper())
 
     private fun notifyError(message: String) {
-        mainHandler.post { if (!stopped.get()) listener.onDiscoveryError(message) }
+        mainHandler.post { listener.onDiscoveryError(message) }
     }
     private val resolving = HashSet<String>()
     private val known = HashSet<String>()
