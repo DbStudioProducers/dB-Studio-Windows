@@ -3,6 +3,8 @@ package com.dbstudio.receiverbench
 import android.content.Context
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
+import android.os.Handler
+import android.os.Looper
 import java.net.Inet4Address
 import java.net.InetAddress
 import java.util.concurrent.atomic.AtomicBoolean
@@ -36,6 +38,13 @@ class DbStudioDiscovery(context: Context, private val listener: Listener) {
 
     private val manager = context.applicationContext.getSystemService(Context.NSD_SERVICE) as NsdManager
     private val stopped = AtomicBoolean(true)
+    // Prevent duplicate discoverServices calls while Android is still starting discovery.
+    private val requested = AtomicBoolean(false)
+    private val mainHandler = Handler(Looper.getMainLooper())
+
+    private fun notifyError(message: String) {
+        mainHandler.post { if (!stopped.get()) listener.onDiscoveryError(message) }
+    }
     private val resolving = HashSet<String>()
     private val known = HashSet<String>()
 
@@ -52,7 +61,7 @@ class DbStudioDiscovery(context: Context, private val listener: Listener) {
                         manager.resolveService(serviceInfo, resolveListener)
                     } catch (e: RuntimeException) {
                         resolving.remove(serviceInfo.serviceName)
-                        listener.onDiscoveryError("Falha ao resolver serviço local: ${e.message ?: "erro"}")
+                        notifyError("Falha ao resolver serviço local: ${e.message ?: "erro"}")
                     }
                 }
             }
@@ -60,21 +69,23 @@ class DbStudioDiscovery(context: Context, private val listener: Listener) {
 
         override fun onServiceLost(serviceInfo: NsdServiceInfo) {
             synchronized(resolving) { known.remove(serviceInfo.serviceName) }
-            listener.onServerLost(serviceInfo.serviceName)
+            mainHandler.post { if (!stopped.get()) listener.onServerLost(serviceInfo.serviceName) }
         }
 
         override fun onDiscoveryStopped(serviceType: String) {
             stopped.set(true)
+            requested.set(false)
         }
 
         override fun onStartDiscoveryFailed(serviceType: String, errorCode: Int) {
             stopped.set(true)
-            listener.onDiscoveryError("Falha ao iniciar descoberta mDNS (código $errorCode)")
+            requested.set(false)
+            notifyError("Falha ao iniciar descoberta mDNS (código $errorCode)")
             try { manager.stopServiceDiscovery(this) } catch (_: RuntimeException) {}
         }
 
         override fun onStopDiscoveryFailed(serviceType: String, errorCode: Int) {
-            listener.onDiscoveryError("Falha ao encerrar descoberta mDNS (código $errorCode)")
+            notifyError("Falha ao encerrar descoberta mDNS (código $errorCode)")
             try { manager.stopServiceDiscovery(this) } catch (_: RuntimeException) {}
         }
     }
@@ -82,7 +93,7 @@ class DbStudioDiscovery(context: Context, private val listener: Listener) {
     private val resolveListener = object : NsdManager.ResolveListener {
         override fun onResolveFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
             synchronized(resolving) { resolving.remove(serviceInfo.serviceName) }
-            if (!stopped.get()) listener.onDiscoveryError("Não foi possível resolver servidor local (código $errorCode)")
+            notifyError("Não foi possível resolver servidor local (código $errorCode)")
         }
 
         override fun onServiceResolved(serviceInfo: NsdServiceInfo) {
@@ -107,8 +118,7 @@ class DbStudioDiscovery(context: Context, private val listener: Listener) {
             synchronized(resolving) {
                 if (!known.add(serviceInfo.serviceName)) return
             }
-            listener.onServerFound(
-                DiscoveredDbStudioServer(
+            val discovered = DiscoveredDbStudioServer(
                     serviceName = serviceInfo.serviceName,
                     hostAddress = host.hostAddress ?: return,
                     port = serviceInfo.port,
@@ -117,21 +127,27 @@ class DbStudioDiscovery(context: Context, private val listener: Listener) {
                     state = state,
                     capacity = capacity
                 )
-            )
+            mainHandler.post {
+                if (!stopped.get()) listener.onServerFound(discovered)
+            }
         }
     }
 
     fun start() {
-        if (!stopped.get()) return
+        if (!requested.compareAndSet(false, true)) return
+        stopped.set(false)
         try {
             manager.discoverServices(SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, discoveryListener)
         } catch (e: RuntimeException) {
-            listener.onDiscoveryError("Descoberta mDNS indisponível: ${e.message ?: "erro"}")
+            requested.set(false)
+            stopped.set(true)
+            notifyError("Descoberta mDNS indisponível: ${e.message ?: "erro"}")
         }
     }
 
     fun stop() {
-        if (stopped.getAndSet(true)) return
+        if (!requested.getAndSet(false)) return
+        stopped.set(true)
         try { manager.stopServiceDiscovery(discoveryListener) } catch (_: RuntimeException) {}
         synchronized(resolving) {
             resolving.clear()
