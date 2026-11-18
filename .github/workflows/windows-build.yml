@@ -9,9 +9,9 @@ permissions:
 
 on:
   push:
-    branches: [main]
+    branches: [main, feature/wifi-quic-poc-20261115]
   pull_request:
-    branches: [main]
+    branches: [main, feature/ui-asio-updater-20261114]
   workflow_dispatch:
 
 jobs:

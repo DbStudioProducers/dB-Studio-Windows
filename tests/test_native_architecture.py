@@ -17,7 +17,7 @@ class NativeArchitectureChecks(unittest.TestCase):
         self.assertIn('actions/checkout@v7', workflow)
         self.assertIn('actions/setup-python@v7', workflow)
         self.assertIn('actions/upload-artifact@v7', workflow)
-        self.assertIn('branches: [main]', workflow)
+        self.assertRegex(workflow, r'branches:\s*\[main(?:,|\])')
         self.assertNotIn('"feature/**"', workflow)
 
     def test_juce_8_is_the_primary_pinned_build(self):

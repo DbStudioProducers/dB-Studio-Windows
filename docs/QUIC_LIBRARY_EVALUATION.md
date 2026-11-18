@@ -71,3 +71,43 @@ A documentação oficial mostra:
 ## Critério de aprovação
 
 A POC só pode ser promovida a integração quando os bloqueios acima tiverem evidências reproduzíveis, builds verdes nas quatro plataformas, testes adversariais aprovados, revisão de licença/dependências e confirmação de segurança. Até lá, XQUIC permanece apenas candidata de POC e o transporte de produção continua desabilitado.
+
+
+## Atualização de baseline da POC — 16/11/2026
+
+A release pública mais recente encontrada durante esta revisão é **XQUIC v1.9.8**, publicada em 19/10/2026. O ref GitHub `refs/tags/v1.9.8` resolve atualmente para o commit:
+
+```text
+b2d1f2ca05d3456614838c82bf50cafe5c060262
+```
+
+Esse SHA deve ser usado como baseline reproduzível da POC, em vez de referenciar `main` ou uma tag móvel. A release informa correções recentes no transporte, validação de parâmetros de transporte e tratamento de early data/tickets inválidos. Isso é sinal favorável para avaliação, mas não constitui auditoria de segurança nem prova de que 0-RTT esteja desabilitado por padrão.
+
+### Decisão de engenharia
+
+- **Prosseguir com XQUIC v1.9.8 apenas em uma POC isolada**, fixada no SHA acima.
+- Não adicionar XQUIC ao CMake principal nem ao binário distribuível enquanto a matriz de builds e licenças não estiver aprovada.
+- Não ativar 0-RTT; a configuração deve ser explicitamente desabilitada e coberta por teste negativo.
+- Usar a API QUIC DATAGRAM apenas para áudio; autenticação, atribuição AUX e comandos devem usar streams confiáveis após handshake autenticado.
+- Manter o codec `AudioPacketCodec.h` como formato interno do payload, nunca como mecanismo de autenticação ou criptografia.
+- A camada de transporte deve expor uma interface pequena e independente da biblioteca, para permitir substituição caso XQUIC falhe em iOS/Android ou na revisão de licença.
+
+### Portões antes de integrar
+
+1. Checkout pelo SHA fixo e captura recursiva de submódulos; registrar SHA de cada dependência e SBOM.
+2. Inspecionar o código da versão fixada para confirmar opções de criptografia, callbacks de certificado, autenticação de cliente e controle de early data; não confiar apenas na documentação.
+3. Compilar exemplos upstream sem alterações primeiro; depois criar um cliente/servidor mínimo do dB Studio em Windows x64.
+4. Confirmar negociação QUIC v1 + DATAGRAM em ambas as direções e provar rejeição de certificado inválido, expirado e identidade incorreta.
+5. Confirmar que credencial revogada não estabelece sessão autorizada e que o servidor ignora qualquer AUX/role informado pelo cliente.
+6. Repetir a prova no Android arm64; só então iniciar o cliente iOS com a mesma interface de transporte.
+7. Comparar tamanho final de datagrama com MTU real: o codec atual gera no máximo 1072 bytes de payload de aplicação, mas cabeçalhos QUIC/UDP/IP precisam ser contabilizados separadamente.
+8. Testar perda, reorder, duplicação, jitter, suspensão/retomada Android, mudança de IP e shutdown concorrente antes de integrar ao motor JUCE.
+
+### Alternativas e critério de troca
+
+- **LSQUIC** permanece alternativa caso a prova de cliente-servidor seja mais simples no Windows, mas a cobertura iOS ainda precisa ser demonstrada.
+- **TQUIC** permanece alternativa se sua implementação de DATAGRAM e integração C/C++ forem comprovadas nos quatro alvos; não presumir suporte apenas por suporte multiplataforma geral.
+- **Network.framework** pode ser considerado para cliente iOS nativo se XQUIC não passar, mantendo o protocolo interoperável; isso cria duas implementações de transporte e aumenta o custo de testes.
+- Não usar UDP próprio com criptografia caseira, WebSocket/TCP para o fluxo principal de áudio, nem fallback sem TLS. TCP pode servir a ferramentas de diagnóstico, nunca substituir o caminho de áudio em tempo real.
+
+**Status desta atualização:** decisão de baseline para POC registrada; nenhuma biblioteca foi integrada, nenhum tráfego QUIC do dB Studio foi transmitido e nenhum requisito de segurança foi marcado como aprovado.
