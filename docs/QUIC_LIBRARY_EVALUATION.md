@@ -1,7 +1,7 @@
 # dB Studio — avaliação de bibliotecas QUIC
 
 Data da avaliação: 10/11/2026  
-Estado: decisão provisória para prova de conceito; nenhuma biblioteca foi integrada ao produto.
+Estado: XQUIC v1.9.8 é a biblioteca escolhida pelo projeto. A integração ainda não está concluída nem aprovada para uso de campo.
 
 ## Critérios obrigatórios
 
@@ -9,39 +9,9 @@ A biblioteca precisa oferecer QUIC v1 com TLS 1.3, QUIC DATAGRAM (RFC 9221), str
 
 Uma página de suporte a plataforma não substitui um build real em cada SDK/arquitetura. Uma API de validação de certificado do servidor também não prova, por si só, autenticação mútua de certificados de cliente.
 
-## Comparação documental
+## Decisão do projeto
 
-| Biblioteca | Plataformas declaradas | DATAGRAM RFC 9221 | Linguagem/API | Licença | Avaliação |
-|---|---|---|---|---|---|
-| XQUIC | Windows, macOS, iOS, Android | Sim; documentação apresenta callbacks, MSS e xqc_datagram_send | C | Apache-2.0 | Melhor candidata para a primeira prova de conceito |
-| LSQUIC | Windows, macOS, Android; iOS não confirmado na matriz oficial consultada | Sim | C | MIT | Não atende ainda ao requisito de uma implementação compartilhada nas quatro plataformas |
-| TQUIC | Windows, macOS, iOS, Android | Não confirmado explicitamente nas páginas oficiais consultadas | Rust com APIs Rust/C/C++ | Apache-2.0 | Alternativa para comparação; confirmar DATAGRAM e sua configuração |
-| Apple Network.framework | Plataformas Apple | QUICDatagram documentado | Swift/Objective-C | API do sistema | Não resolve o servidor Windows nem os clientes Android |
-
-Fontes primárias consultadas:
-- XQUIC: https://github.com/alibaba/xquic
-- XQUIC: https://doc.xquic.org.cn/en/tutorials/what_is_xquic.html
-- XQUIC API: https://doc.xquic.org.cn/markdown/Files/xquic_8h.html
-- XQUIC plataformas: https://github.com/alibaba/xquic/blob/main/docs/Platforms.md
-- LSQUIC: https://lsquic.readthedocs.io/en/latest/
-- TQUIC: https://github.com/tencent/tquic
-- TQUIC instalação: https://tquic.net/docs/getting_started/installation/
-- Apple QUICDatagram: https://developer.apple.com/documentation/network/quicdatagram
-- RFC 9221: https://www.rfc-editor.org/rfc/rfc9221.html
-
-## Decisão provisória
-
-**XQUIC será a primeira biblioteca avaliada em uma prova de conceito isolada.** A escolha é apenas para POC, não é uma aprovação para produção nem um compromisso de dependência. A documentação pública consultada é a que melhor cobre simultaneamente as quatro plataformas e expõe uma API explícita de datagramas.
-
-A documentação oficial mostra:
-- suporte a QUIC v1 e integração TLS 1.3;
-- suporte ao recurso de datagramas não confiáveis;
-- callbacks de leitura/escrita/perda e notificação de MSS;
-- API xqc_datagram_send e xqc_datagram_get_mss;
-- callback de verificação de certificado do peer no cliente;
-- builds documentados para Windows, macOS, Android e iOS;
-- dependência de CMake e BoringSSL ou BabaSSL;
-- licença Apache-2.0.
+**XQUIC v1.9.8 é a implementação QUIC selecionada para o dB Studio.** Não será conduzida uma trilha comparativa com MsQuic ou outras bibliotecas. A versão fica fixada no commit `b2d1f2ca05d3456614838c82bf50cafe5c060262`, com licença Apache-2.0 declarada no repositório upstream. A escolha não substitui a necessidade de validar build, API, TLS, DATAGRAM, autenticação, dependências e comportamento nas plataformas do produto.
 
 ## Bloqueios que a POC precisa resolver antes de integrar
 
@@ -103,11 +73,8 @@ Esse SHA deve ser usado como baseline reproduzível da POC, em vez de referencia
 7. Comparar tamanho final de datagrama com MTU real: o codec atual gera no máximo 1072 bytes de payload de aplicação, mas cabeçalhos QUIC/UDP/IP precisam ser contabilizados separadamente.
 8. Testar perda, reorder, duplicação, jitter, suspensão/retomada Android, mudança de IP e shutdown concorrente antes de integrar ao motor JUCE.
 
-### Alternativas e critério de troca
+### Regra de implementação
 
-- **LSQUIC** permanece alternativa caso a prova de cliente-servidor seja mais simples no Windows, mas a cobertura iOS ainda precisa ser demonstrada.
-- **TQUIC** permanece alternativa se sua implementação de DATAGRAM e integração C/C++ forem comprovadas nos quatro alvos; não presumir suporte apenas por suporte multiplataforma geral.
-- **Network.framework** pode ser considerado para cliente iOS nativo se XQUIC não passar, mantendo o protocolo interoperável; isso cria duas implementações de transporte e aumenta o custo de testes.
-- Não usar UDP próprio com criptografia caseira, WebSocket/TCP para o fluxo principal de áudio, nem fallback sem TLS. TCP pode servir a ferramentas de diagnóstico, nunca substituir o caminho de áudio em tempo real.
+XQUIC é a trilha de implementação do produto. Se surgir um bloqueio técnico, a equipe deve resolver ou documentar formalmente o bloqueio antes de qualquer mudança de biblioteca; não iniciar comparativos paralelos por padrão. Não usar UDP próprio, criptografia caseira, fallback em texto claro ou modo sem criptografia.
 
-**Status desta atualização:** decisão de baseline para POC registrada; nenhuma biblioteca foi integrada, nenhum tráfego QUIC do dB Studio foi transmitido e nenhum requisito de segurança foi marcado como aprovado.
+**Estado:** XQUIC ainda não está integrada; nenhum tráfego QUIC do dB Studio foi transmitido e nenhum requisito de segurança foi marcado como aprovado.
