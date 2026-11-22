@@ -5,10 +5,8 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# JUCE 8.0.6 is the primary supported build. A separate JUCE 7.0.12
-# compatibility build is available for Windows 8.1 users.
+# JUCE 8.0.6 is the supported build baseline for Windows 10/11 and macOS.
 set(DBSTUDIO_JUCE_VERSION "8.0.6" CACHE STRING "JUCE version used for this build")
-option(DBSTUDIO_WINDOWS_81_TARGET "Build the legacy Windows 8.1-compatible variant" OFF)
 option(DBSTUDIO_ENABLE_ASIO "Enable ASIO host support (requires licensed Steinberg ASIO SDK headers)" OFF)
 set(DBSTUDIO_ASIO_SDK_COMMON_DIR "" CACHE PATH "Path to the Steinberg ASIO SDK common directory (must contain iasiodrv.h)")
 
@@ -18,9 +16,6 @@ if(DBSTUDIO_ENABLE_ASIO)
   message(FATAL_ERROR "ASIO distribution is disabled until the applicable Steinberg license is confirmed")
 endif()
 
-if(DBSTUDIO_WINDOWS_81_TARGET AND NOT DBSTUDIO_JUCE_VERSION STREQUAL "7.0.12")
-  message(FATAL_ERROR "The Windows 8.1 compatibility target requires JUCE 7.0.12")
-endif()
 
 include(CTest)
 
@@ -49,22 +44,6 @@ FetchContent_Declare(juce
 )
 FetchContent_MakeAvailable(juce)
 
-if(DBSTUDIO_WINDOWS_81_TARGET)
-  # JUCE 7's PushNotifications enum member "small" collides with the
-  # Windows SDK rpcndr.h macro of the same name. This app does not use push
-  # notifications; rename the unused enum token in the fetched JUCE 7 tree
-  # while preserving its ordinal value and all JUCE 8 sources.
-  set(_juce_push_header "${juce_SOURCE_DIR}/modules/juce_gui_extra/misc/juce_PushNotifications.h")
-  file(READ "${_juce_push_header}" _juce_push_content)
-  string(REPLACE "            small," "            smallIcon," _juce_push_patched "${_juce_push_content}")
-  if(_juce_push_patched STREQUAL _juce_push_content)
-    string(REPLACE "            small,\\n" "            smallIcon,\\n" _juce_push_patched "${_juce_push_content}")
-  endif()
-  if(_juce_push_patched STREQUAL _juce_push_content)
-    message(FATAL_ERROR "Could not apply JUCE 7 Windows SDK small-macro compatibility patch")
-  endif()
-  file(WRITE "${_juce_push_header}" "${_juce_push_patched}")
-endif()
 
 juce_add_gui_app(dBStudio
   PRODUCT_NAME "dB Studio"
@@ -95,14 +74,6 @@ target_compile_definitions(dBStudio PRIVATE
   JUCE_ASIO=$<BOOL:${DBSTUDIO_ENABLE_ASIO}>
   JUCE_ASIO_USE_EXTERNAL_SDK=0
 )
-
-if(DBSTUDIO_WINDOWS_81_TARGET)
-  # Windows 8.1 is version 6.3. Keep this isolated to the JUCE 7 legacy build.
-  target_compile_definitions(dBStudio PRIVATE
-    WINVER=0x0603
-    _WIN32_WINNT=0x0603
-  )
-endif()
 
 target_link_libraries(dBStudio PRIVATE
   juce::juce_audio_utils
