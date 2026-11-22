@@ -24,19 +24,17 @@ class NativeArchitectureChecks(unittest.TestCase):
         self.assertIn('set(DBSTUDIO_JUCE_VERSION "8.0.6" CACHE STRING', self.cmake)
         self.assertIn('GIT_TAG ${DBSTUDIO_JUCE_VERSION}', self.cmake)
 
-    def test_windows_81_compatibility_is_isolated_to_juce_7(self):
-        self.assertIn('option(DBSTUDIO_WINDOWS_81_TARGET', self.cmake)
-        self.assertIn('DBSTUDIO_JUCE_VERSION STREQUAL "7.0.12"', self.cmake)
-        self.assertIn('WINVER=0x0603', self.cmake)
-        self.assertIn('_WIN32_WINNT=0x0603', self.cmake)
-        self.assertIn('smallIcon', self.cmake)
-        self.assertIn('JUCE 7 Windows SDK small-macro compatibility patch', self.cmake)
-        self.assertNotIn('small=small', self.cmake)
-        self.assertNotIn('FontOptions', self.main_component)
-        self.assertIn('juce::Font(27.0f, juce::Font::bold)', self.main_component)
-        main_cpp = (ROOT / 'Source' / 'Main.cpp').read_text(encoding='utf-8')
-        self.assertIn('setTitleBarButtonsRequired(allButtons, false)', main_cpp)
-        self.assertIn('setResizeLimits(960, 650', main_cpp)
+    def test_windows_81_compatibility_is_removed_from_product(self):
+        workflow = (ROOT / '.github' / 'workflows' / 'windows-build.yml').read_text(encoding='utf-8')
+        roadmap = (ROOT / 'docs' / 'IMPLEMENTATION_ROADMAP.md').read_text(encoding='utf-8')
+        self.assertNotIn('DBSTUDIO_WINDOWS_81_TARGET', self.cmake)
+        self.assertNotIn('WINVER=0x0603', self.cmake)
+        self.assertNotIn('_WIN32_WINNT=0x0603', self.cmake)
+        self.assertNotIn('build-win81', workflow)
+        self.assertNotIn('Legacy-Windows-8.1', workflow)
+        self.assertIn('set(DBSTUDIO_JUCE_VERSION "8.0.6" CACHE STRING', self.cmake)
+        self.assertIn('Windows 10/11', roadmap)
+        self.assertIn('runs-on: windows-2022', workflow)
 
     def test_audio_architecture_has_32_inputs_and_16_stereo_mixes(self):
         self.assertIn('constexpr int kInputs = 32;', self.renderer)
