@@ -32,3 +32,8 @@ Please report phone model, Android version, whether the tone starts/stops, wheth
 ## Next implementation gate
 
 Implement authenticated QUIC v1/TLS 1.3, server-authorized AUX binding, QUIC DATAGRAM receive, bounded jitter buffering and stereo remote playback. Then add automated loopback/network tests before field validation on a dedicated Wi-Fi access point.
+
+
+## Estado de integração (22/11/2026)
+
+Este alvo é o **Receiver Bench de diagnóstico**, não o receptor de monitoração pronto para palco. O tom gerado pelo `AudioTrack` é local ao telefone; ele não é recebido do Desktop Server. A tela mantém os controles remotos desabilitados enquanto não houver sessão autenticada. XQUIC v1.9.8 foi selecionado para a implementação, mas ainda não está integrado ao aplicativo. O APK produzido por esta workflow serve para validar instalação, inicialização e diagnóstico de saída de áudio; não deve ser usado como teste de transmissão in-ear em campo.
