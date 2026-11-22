@@ -1,6 +1,6 @@
 # dB Studio — plano mestre de implementação
 
-Estado em 14/11/2026: fundação nativa JUCE 8.0.6 em desenvolvimento; CI nativa completa aprovada no commit `8fcbd23`. O alvo principal é Windows 10 1607+; uma variante isolada JUCE 7.0.12 para Windows 8.1 está em validação e não substitui JUCE 8. Este plano organiza o escopo acordado; não declara como concluídos os módulos ausentes. Requisitos de segurança detalhados em [SECURITY_AND_TRANSPORT.md](SECURITY_AND_TRANSPORT.md). Avaliação documental das bibliotecas QUIC em [QUIC_LIBRARY_EVALUATION.md](QUIC_LIBRARY_EVALUATION.md). Descoberta IP e implantação Wi-Fi em [WIFI_IP_DISCOVERY_V1.md](WIFI_IP_DISCOVERY_V1.md).
+Baseline atual: JUCE 8.0.6 e Windows 10/11 x64 como plataforma Desktop suportada. Windows 8.1 foi removido do escopo, do CMake e da matriz de CI. macOS permanece alvo planejado, sujeito à validação própria. Este plano organiza o escopo acordado; não declara como concluídos os módulos ausentes. Requisitos de segurança detalhados em [SECURITY_AND_TRANSPORT.md](SECURITY_AND_TRANSPORT.md). Avaliação documental das bibliotecas QUIC em [QUIC_LIBRARY_EVALUATION.md](QUIC_LIBRARY_EVALUATION.md). Descoberta IP e implantação Wi-Fi em [WIFI_IP_DISCOVERY_V1.md](WIFI_IP_DISCOVERY_V1.md).
 
 ## Produto e limites
 - Servidor desktop Windows/macOS como autoridade de áudio, sessões, usuários e atribuições.
@@ -41,15 +41,15 @@ Aceite: testes determinísticos, callback dentro do orçamento e limite de canai
 3. [Especificado] Transporte QUIC v1 + TLS 1.3; QUIC DATAGRAM para áudio e streams QUIC para controle. Não criar criptografia própria nem permitir fallback em texto claro.
 4. [Especificado] Identidade por pareamento de uso único, credenciais por dispositivo, validação do servidor, armazenamento seguro e revogação.
 5. [Especificado] Autorização server-side por ação e AUX; o pacote v1 é payload e não autentica por si só.
-6. [Avaliação documental concluída] XQUIC é a candidata inicial para POC por cobrir documentalmente as quatro plataformas e expor API DATAGRAM. Ainda não é dependência aprovada. Ver [QUIC_LIBRARY_EVALUATION.md](QUIC_LIBRARY_EVALUATION.md).
+6. [Decisão do projeto] XQUIC v1.9.8, fixada no commit `b2d1f2ca05d3456614838c82bf50cafe5c060262`, é a biblioteca escolhida para a POC e integração. A adoção no binário continua condicionada a builds e testes reproduzíveis, autenticação e validação de segurança. Ver [QUIC_LIBRARY_EVALUATION.md](QUIC_LIBRARY_EVALUATION.md).
 7. [Especificado] Descoberta LAN DNS-SD/mDNS, endpoint IP dinâmico, fallback QR/manual, portas/firewall restritos e requisitos do AP; ver WIFI_IP_DISCOVERY_V1.md.
 8. Executar POC XQUIC isolada: builds Windows/macOS/Android/iOS, QUIC v1, DATAGRAM bidirecional, validação de certificados, autenticação de dispositivo, 0-RTT desabilitado, licença/dependências e testes adversariais.
 9. Implementar descoberta DNS-SD/mDNS e seleção explícita de interface no Desktop; implementar descoberta/pareamento no Android/iOS com expiração, fallback manual e testes de rede.
 10. Só após POC aprovada, fixar dependência e implementar transporte atrás de interface isolada.
-9. Implementar sender como consumidor único da fila, com acquire/release seguro em todos os caminhos e backpressure limitado.
-10. Implementar jitter buffer, reordenação, descarte de pacotes atrasados, métricas, heartbeat e reconexão.
-11. Desabilitar 0-RTT para operações com efeito; proteger contra replay, mensagens duplicadas, sessões antigas e abuso.
-12. Manter rede e alocação fora do callback.
+10. Implementar sender como consumidor único da fila, com acquire/release seguro em todos os caminhos e backpressure limitado.
+11. Implementar jitter buffer, reordenação, descarte de pacotes atrasados, métricas, heartbeat e reconexão.
+12. Desabilitar 0-RTT para operações com efeito; proteger contra replay, mensagens duplicadas, sessões antigas e abuso.
+13. Manter rede e alocação fora do callback.
 Aceite: builds verdes nas quatro plataformas; testes de perda, duplicação, reordenação, jitter, MTU, replay, revogação, reconexão e isolamento de 16 streams; latência medida em hardware. Transporte de produção bloqueado até autenticação criptográfica e revisão de segurança.
 
 ## Fase 3 — Identidade, usuários, dispositivos e Master
@@ -107,7 +107,7 @@ Aceite: alinhamento, decoder independente, stress com streaming e recuperação.
 Aceite: nenhum bloqueador crítico/alto aberto, transporte criptografado, testes de carga e teste físico aprovados.
 
 ## Fase 9 — Distribuição
-1. Publicar o alvo principal Windows 10 1607+ / JUCE 8.0.6; publicar a variante Windows 8.1 / JUCE 7.0.12 somente se o build, a execução em hardware/VM e a licença forem aprovados.
+1. Publicar o alvo principal Windows 10/11 x64 / JUCE 8.0.6 somente após validação funcional, segurança e teste de campo.
 2. Instalador Windows assinado quando houver certificado; requisitos/drivers documentados.
 3. macOS com assinatura/notarização.
 4. Android/iOS conforme contas e regras das lojas.
@@ -120,3 +120,12 @@ Aceite: nenhum bloqueador crítico/alto aberto, transporte criptografado, testes
 - Recursos dependentes de hardware só são concluídos após teste físico.
 - Distinguir falha de infraestrutura CI de falha de código; não repetir reruns sem evidência nova.
 - Não fazer merge em main, release ou publicar instalador final sem autorização.
+
+
+## Decisão de plataforma e transporte — 22/11/2026
+
+- Windows 10/11 x64 é o único alvo Windows do produto; Windows 8.1 não é mais suportado nem compilado.
+- XQUIC v1.9.8 no SHA fixo acima é a biblioteca escolhida. Não usar MsQuic como trilha comparativa.
+- A escolha da biblioteca não significa que o transporte esteja implementado. O estado de rede permanece bloqueado até handshake QUIC/TLS 1.3 real, negociação DATAGRAM, autenticação de dispositivo, autorização server-side, recepção de áudio remoto e comandos com ACK.
+- O APK Receiver Bench atual é instrumentação: o tom é gerado localmente e não vem do Desktop. Não é versão apta a teste de monitoração em campo.
+- Os artefatos Desktop/Android anteriores são builds de verificação da fundação atual, não um conjunto de campo integrado.
