@@ -115,3 +115,22 @@ Isso habilita o modo C11 no MSVC, necessário para as verificações estáticas 
 
 
 A primeira repetição após habilitar C11 foi interrompida por uma atualização subsequente do PR: a política `cancel-in-progress: true` agrupava as execuções do PR e cancelava a compilação em andamento. A política do workflow foi alterada para `cancel-in-progress: false`, preservando a execução de viabilidade até o resultado. A próxima execução deve validar conjuntamente o ajuste C11 e a política de não cancelamento.
+
+
+## Resultado da POC Windows x64 com C11 — 23/11/2026
+
+A execução GitHub Actions **XQUIC pinned Windows feasibility POC #6** concluiu com sucesso no runner Windows 2022, usando XQUIC v1.9.8 no SHA `b2d1f2ca05d3456614838c82bf50cafe5c060262` e o snapshot BoringSSL fixado no workflow. O log confirma a geração de `xquic-static.lib` em `build/xquic/Release`. A compilação passou após habilitar explicitamente C11 para MSVC.
+
+Evidência: [workflow run 45272386029](https://github.com/DbStudioProducers/dB-Studio-Windows/actions/runs/45272386029). Isso confirma somente que a biblioteca estática compila no runner Windows x64. O job não executa handshake, não inicia servidor/cliente, não negocia DATAGRAM e não prova TLS, autenticação, autorização ou transferência de áudio.
+
+### Revisão adicional antes de integrar
+
+Na leitura do CMake upstream fixado, foi observado que o caminho `SSL_TYPE=boringssl` adiciona `-DNOCRYPT=1`. A busca no código-fonte XQUIC pelo identificador `NOCRYPT` encontrou a definição no CMake, mas não demonstrou outros usos no repositório. O significado e o efeito efetivo dessa definição precisam ser esclarecidos por inspeção do pré-processamento/compilação e por teste de handshake criptografado; não presumir que o build bem-sucedido prove criptografia ativa. Nenhum modo sem criptografia será aceito no produto.
+
+### Estado atualizado
+
+- Windows x64: **compilação da biblioteca estática aprovada** (POC isolada).
+- Android: APK de diagnóstico compila; não é receptor QUIC nem prova de áudio remoto.
+- Desktop: build nativo passa; transporte ainda não integrado.
+- Cliente-servidor XQUIC, TLS 1.3 validado, QUIC DATAGRAM bidirecional, autenticação de dispositivo, autorização AUX em rede e áudio remoto: **pendentes**.
+- Execução mais recente da POC no head `d8b2e205109a041e2e0021578b16c63261c50c29`: ainda em andamento na última consulta; não tratada como aprovada.
