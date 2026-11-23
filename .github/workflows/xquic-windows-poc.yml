@@ -1,0 +1,67 @@
+name: XQUIC pinned Windows feasibility POC
+
+on:
+  pull_request:
+    branches: [feature/ui-asio-updater-20261114]
+  push:
+    branches: [feature/wifi-quic-poc-20261115]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: xquic-windows-poc-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  xquic-windows-x64:
+    runs-on: windows-2022
+    timeout-minutes: 60
+    steps:
+      - name: Checkout dB Studio
+        uses: actions/checkout@v7
+
+      - name: Set up Go required by BoringSSL
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.24.x'
+
+      - name: Install NASM required by BoringSSL
+        shell: pwsh
+        run: choco install nasm -y --no-progress
+
+      - name: Checkout pinned XQUIC v1.9.8
+        uses: actions/checkout@v7
+        with:
+          repository: alibaba/xquic
+          ref: b2d1f2ca05d3456614838c82bf50cafe5c060262
+          path: third_party/xquic
+
+      - name: Checkout pinned BoringSSL snapshot for reproducible POC
+        uses: actions/checkout@v7
+        with:
+          repository: google/boringssl
+          ref: 4f3ef1e422b7cc6b880c5712feb35126ce294ce0
+          path: third_party/boringssl
+
+      - name: Record source revisions
+        shell: pwsh
+        run: |
+          "XQUIC=$(git -C third_party/xquic rev-parse HEAD)" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "BoringSSL=$(git -C third_party/boringssl rev-parse HEAD)" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+
+      - name: Configure BoringSSL x64
+        run: cmake -S third_party/boringssl -B build/boringssl -G "Visual Studio 17 2022" -A x64 -DBUILD_SHARED_LIBS=OFF
+
+      - name: Build BoringSSL static libraries
+        run: cmake --build build/boringssl --config Release --target ssl crypto --parallel 2
+
+      - name: Configure XQUIC v1.9.8 x64
+        shell: pwsh
+        run: |
+          $ssl = (Resolve-Path "third_party/boringssl").Path
+          cmake -S third_party/xquic -B build/xquic -G "Visual Studio 17 2022" -A x64 -DSSL_TYPE=boringssl "-DSSL_PATH=$ssl" -DXQC_ENABLE_TESTING=OFF -DXQC_ENABLE_WEBTRANSPORT=OFF
+
+      - name: Build XQUIC static library
+        run: cmake --build build/xquic --config Release --target xquic-static --parallel 2
