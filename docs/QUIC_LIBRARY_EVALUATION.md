@@ -94,3 +94,21 @@ Para transformar essa incerteza em evidência executável, foi adicionado o work
 - Nenhuma integração de produção deve ser ativada antes de o gate Windows e os gates Android/iOS/macOS serem comprovados.
 
 **Estado em 23/11/2026:** risco de compatibilidade Windows identificado; build de viabilidade isolado adicionado, resultado ainda não disponível. XQUIC continua escolhida pelo projeto, mas não aprovada para integração de produção.
+
+
+## Resultado da primeira compilação Windows — 23/11/2026
+
+A execução GitHub Actions **XQUIC pinned Windows feasibility POC #5** chegou até a compilação da biblioteca. BoringSSL compilou, a configuração CMake do XQUIC passou e os arquivos C começaram a ser compilados no runner Windows Server 2022. A falha não foi falta de suporte de plataforma nem falha de TLS: o MSVC rejeitou as declarações `_Static_assert` de `src/transport/xqc_conn.h` porque a configuração anterior não solicitava explicitamente o padrão C11. Os erros primários foram C2143/C2059 nas linhas 234–240; os demais erros em cascata derivaram desse ponto.
+
+### Correção aplicada
+
+O workflow agora configura explicitamente:
+
+```text
+-DCMAKE_C_STANDARD=11
+-DCMAKE_C_STANDARD_REQUIRED=ON
+```
+
+Isso habilita o modo C11 no MSVC, necessário para as verificações estáticas usadas pelo XQUIC. A alteração é restrita ao workflow da POC e não modifica fontes upstream nem o CMake principal do dB Studio.
+
+**Estado:** causa identificada e correção enviada; aguardar a nova execução. Ainda não há aprovação do build XQUIC até o job terminar com sucesso.
