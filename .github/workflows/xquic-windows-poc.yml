@@ -3,8 +3,6 @@ name: XQUIC pinned Windows feasibility POC
 on:
   pull_request:
     branches: [feature/ui-asio-updater-20261114]
-  push:
-    branches: [feature/wifi-quic-poc-20261115]
   workflow_dispatch:
 
 permissions:
@@ -26,6 +24,7 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version: '1.24.x'
+          cache: false
 
       - name: Install NASM required by BoringSSL
         shell: pwsh
@@ -61,7 +60,15 @@ jobs:
         shell: pwsh
         run: |
           $ssl = (Resolve-Path "third_party/boringssl").Path
-          cmake -S third_party/xquic -B build/xquic -G "Visual Studio 17 2022" -A x64 -DSSL_TYPE=boringssl "-DSSL_PATH=$ssl" -DXQC_ENABLE_TESTING=OFF -DXQC_ENABLE_WEBTRANSPORT=OFF
+          $sslLibraries = @(Get-ChildItem -Path "build/boringssl" -Filter "ssl.lib" -File -Recurse)
+          $cryptoLibraries = @(Get-ChildItem -Path "build/boringssl" -Filter "crypto.lib" -File -Recurse)
+          if ($sslLibraries.Count -ne 1) { throw "Expected exactly one BoringSSL ssl.lib, found $($sslLibraries.Count)" }
+          if ($cryptoLibraries.Count -ne 1) { throw "Expected exactly one BoringSSL crypto.lib, found $($cryptoLibraries.Count)" }
+          $sslLib = $sslLibraries[0].FullName
+          $cryptoLib = $cryptoLibraries[0].FullName
+          "BoringSSL SSL library: $sslLib" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "BoringSSL crypto library: $cryptoLib" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          cmake -S third_party/xquic -B build/xquic -G "Visual Studio 17 2022" -A x64 -DSSL_TYPE=boringssl "-DSSL_INC_PATH=$ssl/include" "-DSSL_LIB_PATH=$sslLib;$cryptoLib" -DXQC_ENABLE_TESTING=OFF -DXQC_ENABLE_WEBTRANSPORT=OFF
 
       - name: Build XQUIC static library
         run: cmake --build build/xquic --config Release --target xquic-static --parallel 2
