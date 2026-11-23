@@ -112,3 +112,6 @@ O workflow agora configura explicitamente:
 Isso habilita o modo C11 no MSVC, necessário para as verificações estáticas usadas pelo XQUIC. A alteração é restrita ao workflow da POC e não modifica fontes upstream nem o CMake principal do dB Studio.
 
 **Estado:** causa identificada e correção enviada; aguardar a nova execução. Ainda não há aprovação do build XQUIC até o job terminar com sucesso.
+
+
+A primeira repetição após habilitar C11 foi interrompida por uma atualização subsequente do PR: a política `cancel-in-progress: true` agrupava as execuções do PR e cancelava a compilação em andamento. A política do workflow foi alterada para `cancel-in-progress: false`, preservando a execução de viabilidade até o resultado. A próxima execução deve validar conjuntamente o ajuste C11 e a política de não cancelamento.
