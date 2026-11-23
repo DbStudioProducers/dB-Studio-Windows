@@ -78,3 +78,19 @@ Esse SHA deve ser usado como baseline reproduzível da POC, em vez de referencia
 XQUIC é a trilha de implementação do produto. Se surgir um bloqueio técnico, a equipe deve resolver ou documentar formalmente o bloqueio antes de qualquer mudança de biblioteca; não iniciar comparativos paralelos por padrão. Não usar UDP próprio, criptografia caseira, fallback em texto claro ou modo sem criptografia.
 
 **Estado:** XQUIC ainda não está integrada; nenhum tráfego QUIC do dB Studio foi transmitido e nenhum requisito de segurança foi marcado como aprovado.
+
+
+## Verificação de viabilidade Windows — 23/11/2026
+
+A leitura direta de `docs/Platforms.md` no próprio tag **v1.9.8** revelou uma inconsistência importante: o parágrafo introdutório lista Windows entre as plataformas suportadas, mas a seção Windows ainda declara explicitamente que o suporte se limita a v1.1.0–v1.3.0 e que v1.4.0 não oferece suporte temporário. A seção não confirma que o suporte foi restaurado nas versões posteriores. Portanto, não é correto considerar Windows x64 validado para v1.9.8 com base apenas na lista geral de plataformas.
+
+Para transformar essa incerteza em evidência executável, foi adicionado o workflow isolado `.github/workflows/xquic-windows-poc.yml`. Ele fixa XQUIC no SHA `b2d1f2ca05d3456614838c82bf50cafe5c060262`, fixa também o snapshot BoringSSL usado na tentativa e tenta compilar a biblioteca estática x64 em runner Windows 2022. O workflow não adiciona dependências ao produto nem ao CMake principal.
+
+### Gate obrigatório
+
+- Se o build falhar por incompatibilidade de plataforma/código upstream, manter XQUIC fora do Desktop Windows e registrar o erro exato; não contornar com UDP próprio, modo sem criptografia ou fallback em texto claro.
+- Se o build passar, isso prova somente compilação da biblioteca. Ainda será necessário construir e executar um cliente-servidor dB Studio real, negociar QUIC v1/DATAGRAM, validar TLS 1.3 e identidade, desabilitar 0-RTT, testar revogação e autorização AUX.
+- O BoringSSL fixado no workflow é um snapshot de POC, não uma aprovação de dependência para distribuição. Licença, avisos, SBOM e atualização segura continuam pendentes.
+- Nenhuma integração de produção deve ser ativada antes de o gate Windows e os gates Android/iOS/macOS serem comprovados.
+
+**Estado em 23/11/2026:** risco de compatibilidade Windows identificado; build de viabilidade isolado adicionado, resultado ainda não disponível. XQUIC continua escolhida pelo projeto, mas não aprovada para integração de produção.
