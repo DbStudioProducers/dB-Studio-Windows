@@ -10,7 +10,7 @@ permissions:
 
 concurrency:
   group: xquic-windows-poc-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   xquic-windows-x64:
