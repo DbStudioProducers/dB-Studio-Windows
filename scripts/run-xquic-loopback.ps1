@@ -152,6 +152,7 @@ try {
     Assert-OutputContains $stream.Output "[xquic-poc]|certificate_pin_match|" "The stream TLS certificate pin did not match."
     Assert-OutputContains $stream.Output "====>DCID" "The stream QUIC handshake did not complete."
     Assert-OutputContains $stream.Output ">>>>>>>> pass:1" "The reliable stream echo did not match the sent payload."
+    if (Test-Path (Join-Path $streamDir "test_session")) { throw "The server issued a TLS session ticket; 0-RTT must remain disabled." }
     Write-Host "[xquic-loopback] TLS 1.3 / QUIC v1 certificate-pinned reliable stream echo: PASS"
 }
 finally {
@@ -205,6 +206,7 @@ finally {
 $summary = @"
 ### XQUIC Windows loopback validation
 - TLS 1.3 / QUIC v1 / encrypted 1-RTT handshake with exact leaf-certificate pin: **PASS**
+- Server TLS session tickets disabled; no client resumption ticket saved: **PASS**
 - Reliable bidirectional QUIC stream echo: **PASS**
 - Bidirectional QUIC DATAGRAM echo: **PASS**
 - Different self-signed certificate with the same hostname rejected by the pin check: **PASS**
