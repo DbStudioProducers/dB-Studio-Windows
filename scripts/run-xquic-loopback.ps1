@@ -170,7 +170,7 @@ try {
     ) "datagram"
     $datagram = Invoke-PocClient $datagramDir @(
         "-a", "127.0.0.1", "-h", "localhost", "-p", "$Port",
-        "-T", "1", "-1", "-V", "1", "-t", "5", "-s", "4096", "-E", "-U", "1", "-Q", "1200"
+        "-T", "1", "-1", "-V", "1", "-t", "5", "-s", "900", "-E", "-U", "1", "-Q", "1200"
     ) "datagram"
     if ($datagram.ExitCode -ne 0) { throw "XQUIC DATAGRAM client exited with code $($datagram.ExitCode)." }
     Assert-OutputContains $datagram.Output "[xquic-poc]|certificate_pin_match|" "The DATAGRAM TLS certificate pin did not match."
