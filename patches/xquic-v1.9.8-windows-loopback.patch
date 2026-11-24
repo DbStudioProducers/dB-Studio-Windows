@@ -8,6 +8,20 @@ diff --git a/tests/CMakeLists.txt b/tests/CMakeLists.txt
          ${LIBEVENT_LIBRARY}
 -        -lm
          CACHE STRING "xquic app depend libs")
+diff --git a/src/tls/xqc_tls_ctx.c b/src/tls/xqc_tls_ctx.c
+--- a/src/tls/xqc_tls_ctx.c
++++ b/src/tls/xqc_tls_ctx.c
+@@ -93,8 +93,9 @@
+         | SSL_OP_SINGLE_ECDH_USE
+ #ifdef SSL_OP_NO_ANTI_REPLAY
+         | SSL_OP_NO_ANTI_REPLAY
+ #endif
+         ;
+     SSL_CTX_set_options(ssl_ctx, ssl_opts);
++    SSL_CTX_set_options(ssl_ctx, SSL_OP_NO_TICKET);
+ 
+     /* Save RAM by releasing read and write buffers when they're empty */
+
 diff --git a/tests/test_server.c b/tests/test_server.c
 --- a/tests/test_server.c
 +++ b/tests/test_server.c
