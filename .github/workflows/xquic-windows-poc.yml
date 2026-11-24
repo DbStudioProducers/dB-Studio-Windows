@@ -113,6 +113,16 @@ jobs:
         shell: pwsh
         run: ./scripts/run-xquic-loopback.ps1 -BuildRoot build/xquic -Port 18443
 
+      - name: Remove ephemeral private keys before publishing test evidence
+        if: always()
+        shell: pwsh
+        run: |
+          $evidence = "build/xquic/loopback-evidence"
+          if (Test-Path $evidence) {
+            Get-ChildItem -Path $evidence -Filter "server.key" -File -Recurse | Remove-Item -Force
+            Get-ChildItem -Path $evidence -Filter "*.pfx" -File -Recurse | Remove-Item -Force
+          }
+
       - name: Upload XQUIC loopback evidence
         uses: actions/upload-artifact@v7
         if: always()
