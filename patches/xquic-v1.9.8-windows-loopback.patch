@@ -11,7 +11,7 @@ diff --git a/tests/CMakeLists.txt b/tests/CMakeLists.txt
 diff --git a/tests/test_server.c b/tests/test_server.c
 --- a/tests/test_server.c
 +++ b/tests/test_server.c
-@@ -3247,6 +3247,10 @@
+@@ -3247,6 +3247,9 @@
      xqc_config_t config;
      if (xqc_engine_get_default_config(&config, XQC_ENGINE_SERVER) < 0) {
          return -1;
@@ -93,6 +93,6 @@ diff --git a/tests/test_client.c b/tests/test_client.c
          } else {
              cid = xqc_connect(ctx.engine, &conn_settings, user_conn->token, user_conn->token_len,
 -                            server_addr, g_no_crypt, &conn_ssl_config, user_conn->peer_addr, 
-+                            g_host, 0, &conn_ssl_config, user_conn->peer_addr, 
++                            g_host, 0, &conn_ssl_config, user_conn->peer_addr,
                              user_conn->peer_addrlen, transport_alpn, user_conn);
          }
