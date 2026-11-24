@@ -1,6 +1,8 @@
 name: XQUIC pinned Windows loopback validation
 
 on:
+  push:
+    branches: [feature/wifi-quic-poc-20261115]
   pull_request:
     branches: [feature/ui-asio-updater-20261114]
   workflow_dispatch:
