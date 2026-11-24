@@ -27,7 +27,7 @@ function New-PocCertificate {
     $rsa = [System.Security.Cryptography.RSA]::Create(2048)
     $certificate = $null
     try {
-        $subject = [System.Security.Cryptography.X500DistinguishedName]::new("CN=localhost")
+        $subject = [System.Security.Cryptography.X509Certificates.X500DistinguishedName]::new("CN=localhost")
         $request = [System.Security.Cryptography.X509Certificates.CertificateRequest]::new(
             $subject,
             $rsa,
