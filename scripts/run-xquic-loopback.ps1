@@ -84,13 +84,17 @@ function Start-PocServer {
     param([string]$Directory, [string[]]$Arguments, [string]$Name)
     $stdout = Join-Path $Directory "$Name-server.stdout.log"
     $stderr = Join-Path $Directory "$Name-server.stderr.log"
-    $process = Start-Process -FilePath $serverExe -ArgumentList $Arguments -WorkingDirectory $Directory -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
-    Start-Sleep -Milliseconds 900
+    $logFile = Join-Path $Directory "$Name-server.xquic.log"
+    $serverArguments = @("-c", "b", "-l", "d", "-o", $logFile) + $Arguments
+    $process = Start-Process -FilePath $serverExe -ArgumentList $serverArguments -WorkingDirectory $Directory -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+    Start-Sleep -Milliseconds 1500
     $process.Refresh()
     if ($process.HasExited) {
+        $exitCode = $process.ExitCode
         $outText = if (Test-Path $stdout) { Get-Content $stdout -Raw } else { "" }
         $errText = if (Test-Path $stderr) { Get-Content $stderr -Raw } else { "" }
-        throw "XQUIC $Name server exited during startup. stdout=$outText stderr=$errText"
+        $xquicLog = if (Test-Path $logFile) { Get-Content $logFile -Raw } else { "" }
+        throw "XQUIC $Name server exited during startup (exit=$exitCode). executable=$serverExe workingDirectory=$Directory args=$($serverArguments -join ' ') stdout=$outText stderr=$errText xquicLog=$xquicLog"
     }
     return $process
 }
