@@ -21,6 +21,7 @@ $testServer = Get-Content (Join-Path $root "tests/test_server.c") -Raw
 $testCmake = Get-Content (Join-Path $root "tests/CMakeLists.txt") -Raw
 
 $minTls13 = [regex]::Matches($tlsContext, 'SSL_CTX_set_min_proto_version\s*\(\s*ssl_ctx\s*,\s*TLS1_3_VERSION\s*\)').Count
+Require-Pattern $tlsContext 'SSL_CTX_set_options\s*\(\s*ssl_ctx\s*,\s*SSL_OP_NO_TICKET\s*\)' "XQUIC server TLS context must disable session tickets and 0-RTT."
 $maxTls13 = [regex]::Matches($tlsContext, 'SSL_CTX_set_max_proto_version\s*\(\s*ssl_ctx\s*,\s*TLS1_3_VERSION\s*\)').Count
 if ($minTls13 -lt 2 -or $maxTls13 -lt 2) {
     throw "XQUIC must pin both client and server TLS contexts to TLS 1.3 (min/max)."
@@ -50,6 +51,7 @@ Require-Pattern $testClient 'xqc_connect\(ctx\.engine,\s*&conn_settings,\s*user_
 Require-Pattern $testClient 'certificate_pin_mismatch' "XQUIC loopback client certificate pin rejection patch is missing."
 Require-Pattern $testClient 'memcmp\(certs\[0\],\s*expected_der' "XQUIC loopback client does not compare the peer leaf certificate pin."
 Require-Pattern $testClient 'use_1rtt\s*=\s*1;' "XQUIC loopback client must support forcing 1-RTT without 0-RTT tickets."
+Require-Pattern $testClient 'if\s*\(session_len\s*<\s*0\s*\|\|\s*tp_len\s*<\s*0\s*\|\|\s*use_1rtt\s*\).*?conn_ssl_config\.session_ticket_data\s*=\s*NULL;.*?conn_ssl_config\.transport_parameter_data\s*=\s*NULL;' "XQUIC loopback client must not offer session tickets or early data."
 Require-Pattern $testClient 'XQC_TLS_CERT_FLAG_NEED_VERIFY' "XQUIC loopback client certificate verification is not enabled."
 Require-Pattern $testClient 'XQC_TLS_CERT_FLAG_ALLOW_SELF_SIGNED' "XQUIC loopback test self-signed pin path is unavailable."
 Require-Pattern $testServer 'config\.support_version_count\s*=\s*1;.*?config\.support_version_list\[0\]\s*=\s*XQC_VERSION_V1_VALUE;' "XQUIC loopback server must explicitly negotiate QUIC v1 only."
