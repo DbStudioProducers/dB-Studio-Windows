@@ -52,7 +52,7 @@ Require-Pattern $testClient 'memcmp\(certs\[0\],\s*expected_der' "XQUIC loopback
 Require-Pattern $testClient 'use_1rtt\s*=\s*1;' "XQUIC loopback client must support forcing 1-RTT without 0-RTT tickets."
 Require-Pattern $testClient 'XQC_TLS_CERT_FLAG_NEED_VERIFY' "XQUIC loopback client certificate verification is not enabled."
 Require-Pattern $testClient 'XQC_TLS_CERT_FLAG_ALLOW_SELF_SIGNED' "XQUIC loopback test self-signed pin path is unavailable."
-Require-Pattern $testServer 'XQC_VERSION_V1' "XQUIC loopback server must support QUIC v1."
+Require-Pattern $testServer 'config\.support_version_count\s*=\s*1;.*?config\.support_version_list\[0\]\s*=\s*XQC_VERSION_V1_VALUE;' "XQUIC loopback server must explicitly negotiate QUIC v1 only."
 
 if ($testCmake -match '(?m)^\s*-lm\s*$') {
     throw "The Windows test-app CMake target still links the Unix-only -lm flag."
