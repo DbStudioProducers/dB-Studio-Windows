@@ -1,15 +1,13 @@
 diff --git a/tests/CMakeLists.txt b/tests/CMakeLists.txt
 --- a/tests/CMakeLists.txt
 +++ b/tests/CMakeLists.txt
-@@ -54,9 +54,8 @@ if(CMAKE_SYSTEM_NAME MATCHES "Windows")
+@@ -55,6 +55,5 @@
      set(APP_DEPEND_LIBS
          xquic-static
          ${SSL_LIB_PATH}
          ${LIBEVENT_LIBRARY}
 -        -lm
          CACHE STRING "xquic app depend libs")
- else()
-     set(APP_DEPEND_LIBS
 diff --git a/tests/test_client.c b/tests/test_client.c
 --- a/tests/test_client.c
 +++ b/tests/test_client.c
@@ -22,7 +20,7 @@ diff --git a/tests/test_client.c b/tests/test_client.c
  #include <xquic/xquic.h>
  #include <xquic/xquic_typedef.h>
  #include <xquic/xqc_errno.h>
-@@ -4911,8 +4913,52 @@
+@@ -4911,7 +4913,52 @@
  int 
  xqc_client_cert_verify(const unsigned char *certs[], 
      const size_t cert_len[], size_t certs_len, void *conn_user_data)
@@ -77,7 +75,7 @@ diff --git a/tests/test_client.c b/tests/test_client.c
 +    printf("[xquic-poc]|certificate_pin_mismatch|\n");
 +    return XQC_ERROR;
  }
-@@ -6363,6 +6409,6 @@
+@@ -6363,5 +6408,5 @@
          } else {
              cid = xqc_connect(ctx.engine, &conn_settings, user_conn->token, user_conn->token_len,
 -                            server_addr, g_no_crypt, &conn_ssl_config, user_conn->peer_addr, 
