@@ -71,9 +71,9 @@ jobs:
             $vcpkg = $command.Source
             $vcpkgRoot = Split-Path (Split-Path $vcpkg -Parent) -Parent
           }
-          & $vcpkg install libevent:x64-windows --disable-metrics
+          & $vcpkg install libevent:x64-windows-static --disable-metrics
           if ($LASTEXITCODE -ne 0) { throw "vcpkg libevent installation failed." }
-          $libeventDir = Join-Path $vcpkgRoot "installed/x64-windows"
+          $libeventDir = Join-Path $vcpkgRoot "installed/x64-windows-static"
           if (-not (Test-Path (Join-Path $libeventDir "include/event2/event.h"))) {
             throw "libevent headers were not found under $libeventDir."
           }
@@ -84,7 +84,7 @@ jobs:
         run: |
           "XQUIC=$(git -C third_party/xquic rev-parse HEAD)" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
           "BoringSSL=$(git -C third_party/boringssl rev-parse HEAD)" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
-          "libevent=$env:DBSTUDIO_LIBEVENT_DIR" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "libevent=$env:DBSTUDIO_LIBEVENT_DIR (static triplet)" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
 
       - name: Configure BoringSSL x64
         run: cmake -S third_party/boringssl -B build/boringssl -G "Visual Studio 17 2022" -A x64 -DBUILD_SHARED_LIBS=OFF
