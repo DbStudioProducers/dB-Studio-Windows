@@ -1,0 +1,85 @@
+diff --git a/tests/CMakeLists.txt b/tests/CMakeLists.txt
+--- a/tests/CMakeLists.txt
++++ b/tests/CMakeLists.txt
+@@ -37,9 +37,8 @@ if(CMAKE_SYSTEM_NAME MATCHES "Windows")
+         xquic-static
+         ${SSL_LIB_PATH}
+         ${LIBEVENT_LIBRARY}
+-        -lm
+         CACHE STRING "xquic app depend libs")
+ else()
+     set(APP_DEPEND_LIBS
+diff --git a/tests/test_client.c b/tests/test_client.c
+--- a/tests/test_client.c
++++ b/tests/test_client.c
+@@ -13,6 +13,8 @@
+ #include <time.h>
+ #include <inttypes.h>
+ #include <openssl/ssl.h>
++#include <openssl/pem.h>
++#include <openssl/x509.h>
+ #include <xquic/xquic.h>
+ #include <xquic/xquic_typedef.h>
+ #include <xquic/xqc_errno.h>
+@@ -4911,7 +4913,43 @@
+ int 
+ xqc_client_cert_verify(const unsigned char *certs[], 
+     const size_t cert_len[], size_t certs_len, void *conn_user_data)
+ {
+-    /* self-signed cert used in test cases, return >= 0 means success */
+-    return 0;
++    FILE *fp = NULL;
++    X509 *expected = NULL;
++    unsigned char *expected_der = NULL;
++    unsigned char *cursor = NULL;
++    int expected_len = 0;
++    int encoded_len = 0;
++    int matches = 0;
++
++    (void) conn_user_data;
++    if (certs == NULL || cert_len == NULL || certs_len == 0 || certs[0] == NULL) {
++        printf("[xquic-poc]|certificate_pin_missing|\n");
++        return XQC_ERROR;
++    }
++
++    fp = fopen("expected_server.crt", "rb");
++    if (fp == NULL) {
++        printf("[xquic-poc]|expected_certificate_missing|\n");
++        return XQC_ERROR;
++    }
++    expected = PEM_read_X509(fp, NULL, NULL, NULL);
++    fclose(fp);
++    if (expected == NULL) {
++        printf("[xquic-poc]|expected_certificate_invalid|\n");
++        return XQC_ERROR;
++    }
++
++    expected_len = i2d_X509(expected, NULL);
++    if (expected_len > 0) {
++        expected_der = (unsigned char *) malloc((size_t) expected_len);
++    }
++    if (expected_der != NULL) {
++        cursor = expected_der;
++        encoded_len = i2d_X509(expected, &cursor);
++        matches = encoded_len == expected_len
++            && cert_len[0] == (size_t) expected_len
++            && memcmp(certs[0], expected_der, (size_t) expected_len) == 0;
++    }
++
++    free(expected_der);
++    X509_free(expected);
++    if (matches) {
++        printf("[xquic-poc]|certificate_pin_match|\n");
++        return XQC_OK;
++    }
++
++    printf("[xquic-poc]|certificate_pin_mismatch|\n");
++    return XQC_ERROR;
+ }
+@@ -6361,7 +6399,7 @@
+         } else {
+             cid = xqc_connect(ctx.engine, &conn_settings, user_conn->token, user_conn->token_len,
+-                            server_addr, g_no_crypt, &conn_ssl_config, user_conn->peer_addr, 
++                            g_host, 0, &conn_ssl_config, user_conn->peer_addr, 
+                             user_conn->peer_addrlen, transport_alpn, user_conn);
+         }
