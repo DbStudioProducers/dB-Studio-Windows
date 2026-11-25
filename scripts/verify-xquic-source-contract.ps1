@@ -60,8 +60,10 @@ if ($testCmake -match '(?m)^\s*-lm\s*$') {
     throw "The Windows test-app CMake target still links the Unix-only -lm flag."
 }
 
+Require-Pattern $testCmake 'set\(APP_DEPEND_LIBS[\s\S]*?\$\{LIBEVENT_LIBRARY\}[\s\S]*?\bbcrypt\b[\s\S]*?CACHE STRING "xquic app depend libs"\)' "Windows XQUIC loopback apps must link bcrypt.lib for libevent BCryptGenRandom."
+
 Write-Host "[xquic-contract] TLS 1.3 min/max on client and server: PASS"
 Write-Host "[xquic-contract] QUIC v1, reliable streams and DATAGRAM APIs: PASS"
 Write-Host "[xquic-contract] runtime crypto flag semantics; no NOCRYPT source consumer: PASS"
 Write-Host "[xquic-contract] loopback client uses encrypted QUIC v1, 1-RTT and certificate pinning: PASS"
-Write-Host "[xquic-contract] Windows test-app link configuration: PASS"
+Write-Host "[xquic-contract] Windows test-app links BCryptGenRandom dependency: PASS"
