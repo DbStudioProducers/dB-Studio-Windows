@@ -22,8 +22,6 @@ diff --git a/src/tls/xqc_tls_ctx.c b/src/tls/xqc_tls_ctx.c
 +    SSL_CTX_set_options(ssl_ctx, SSL_OP_NO_TICKET);
  
      /* Save RAM by releasing read and write buffers when they're empty */
-     SSL_CTX_set_options(ssl_ctx, SSL_OP_NO_TICKET);
- 
 diff --git a/tests/test_server.c b/tests/test_server.c
 --- a/tests/test_server.c
 +++ b/tests/test_server.c
