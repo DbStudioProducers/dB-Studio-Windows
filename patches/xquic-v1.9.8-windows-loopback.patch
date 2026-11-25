@@ -1,12 +1,13 @@
 diff --git a/tests/CMakeLists.txt b/tests/CMakeLists.txt
 --- a/tests/CMakeLists.txt
 +++ b/tests/CMakeLists.txt
-@@ -55,6 +55,5 @@
+@@ -55,6 +55,6 @@
      set(APP_DEPEND_LIBS
          xquic-static
          ${SSL_LIB_PATH}
          ${LIBEVENT_LIBRARY}
 -        -lm
++        bcrypt
          CACHE STRING "xquic app depend libs")
 diff --git a/src/tls/xqc_tls_ctx.c b/src/tls/xqc_tls_ctx.c
 --- a/src/tls/xqc_tls_ctx.c
@@ -21,7 +22,8 @@ diff --git a/src/tls/xqc_tls_ctx.c b/src/tls/xqc_tls_ctx.c
 +    SSL_CTX_set_options(ssl_ctx, SSL_OP_NO_TICKET);
  
      /* Save RAM by releasing read and write buffers when they're empty */
-
+     SSL_CTX_set_options(ssl_ctx, SSL_OP_NO_TICKET);
+ 
 diff --git a/tests/test_server.c b/tests/test_server.c
 --- a/tests/test_server.c
 +++ b/tests/test_server.c
@@ -35,7 +37,7 @@ diff --git a/tests/test_server.c b/tests/test_server.c
 +    config.support_version_list[0] = XQC_VERSION_V1_VALUE;
  
      config.enable_h3_ext = g_enable_h3_ext;
-
+ 
 diff --git a/tests/test_client.c b/tests/test_client.c
 --- a/tests/test_client.c
 +++ b/tests/test_client.c
@@ -65,19 +67,19 @@ diff --git a/tests/test_client.c b/tests/test_client.c
 +
 +    (void) conn_user_data;
 +    if (certs == NULL || cert_len == NULL || certs_len == 0 || certs[0] == NULL) {
-+        printf("[xquic-poc]|certificate_pin_missing|\n");
++        printf("[xquic-poc]|certificate_pin_missing|\\n");
 +        return XQC_ERROR;
 +    }
 +
 +    fp = fopen("expected_server.crt", "rb");
 +    if (fp == NULL) {
-+        printf("[xquic-poc]|expected_certificate_missing|\n");
++        printf("[xquic-poc]|expected_certificate_missing|\\n");
 +        return XQC_ERROR;
 +    }
 +    expected = PEM_read_X509(fp, NULL, NULL, NULL);
 +    fclose(fp);
 +    if (expected == NULL) {
-+        printf("[xquic-poc]|expected_certificate_invalid|\n");
++        printf("[xquic-poc]|expected_certificate_invalid|\\n");
 +        return XQC_ERROR;
 +    }
 +
@@ -96,11 +98,11 @@ diff --git a/tests/test_client.c b/tests/test_client.c
 +    free(expected_der);
 +    X509_free(expected);
 +    if (matches) {
-+        printf("[xquic-poc]|certificate_pin_match|\n");
++        printf("[xquic-poc]|certificate_pin_match|\\n");
 +        return XQC_OK;
 +    }
 +
-+    printf("[xquic-poc]|certificate_pin_mismatch|\n");
++    printf("[xquic-poc]|certificate_pin_mismatch|\\n");
 +    return XQC_ERROR;
  }
 @@ -6363,5 +6408,5 @@
