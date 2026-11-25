@@ -65,19 +65,19 @@ diff --git a/tests/test_client.c b/tests/test_client.c
 +
 +    (void) conn_user_data;
 +    if (certs == NULL || cert_len == NULL || certs_len == 0 || certs[0] == NULL) {
-+        printf("[xquic-poc]|certificate_pin_missing|\\n");
++        printf("[xquic-poc]|certificate_pin_missing|\n");
 +        return XQC_ERROR;
 +    }
 +
 +    fp = fopen("expected_server.crt", "rb");
 +    if (fp == NULL) {
-+        printf("[xquic-poc]|expected_certificate_missing|\\n");
++        printf("[xquic-poc]|expected_certificate_missing|\n");
 +        return XQC_ERROR;
 +    }
 +    expected = PEM_read_X509(fp, NULL, NULL, NULL);
 +    fclose(fp);
 +    if (expected == NULL) {
-+        printf("[xquic-poc]|expected_certificate_invalid|\\n");
++        printf("[xquic-poc]|expected_certificate_invalid|\n");
 +        return XQC_ERROR;
 +    }
 +
@@ -96,11 +96,11 @@ diff --git a/tests/test_client.c b/tests/test_client.c
 +    free(expected_der);
 +    X509_free(expected);
 +    if (matches) {
-+        printf("[xquic-poc]|certificate_pin_match|\\n");
++        printf("[xquic-poc]|certificate_pin_match|\n");
 +        return XQC_OK;
 +    }
 +
-+    printf("[xquic-poc]|certificate_pin_mismatch|\\n");
++    printf("[xquic-poc]|certificate_pin_mismatch|\n");
 +    return XQC_ERROR;
  }
 @@ -6363,5 +6408,5 @@
