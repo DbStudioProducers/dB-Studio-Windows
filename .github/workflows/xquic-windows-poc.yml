@@ -1,0 +1,133 @@
+name: XQUIC pinned Windows loopback validation
+
+on:
+  push:
+    branches: [feature/wifi-quic-poc-20261115]
+  pull_request:
+    branches: [feature/ui-asio-updater-20261114]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: xquic-windows-poc-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  xquic-windows-x64:
+    runs-on: windows-2022
+    timeout-minutes: 75
+    steps:
+      - name: Checkout dB Studio
+        uses: actions/checkout@v7
+
+      - name: Set up Go required by BoringSSL
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.24.x'
+          cache: false
+
+      - name: Install NASM required by BoringSSL
+        shell: pwsh
+        run: choco install nasm -y --no-progress
+
+      - name: Checkout pinned XQUIC v1.9.8
+        uses: actions/checkout@v7
+        with:
+          repository: alibaba/xquic
+          ref: b2d1f2ca05d3456614838c82bf50cafe5c060262
+          path: third_party/xquic
+
+      - name: Checkout pinned BoringSSL snapshot for reproducible POC
+        uses: actions/checkout@v7
+        with:
+          repository: google/boringssl
+          ref: 4f3ef1e422b7cc6b880c5712feb35126ce294ce0
+          path: third_party/boringssl
+
+      - name: Apply pinned XQUIC Windows loopback harness patch
+        shell: pwsh
+        run: |
+          $patch = Join-Path $env:GITHUB_WORKSPACE "patches/xquic-v1.9.8-windows-loopback.patch"
+          git -C third_party/xquic apply --check $patch
+          if ($LASTEXITCODE -ne 0) { throw "XQUIC loopback patch check failed." }
+          git -C third_party/xquic apply $patch
+          if ($LASTEXITCODE -ne 0) { throw "XQUIC loopback patch application failed." }
+
+      - name: Verify XQUIC security and transport source contract before compiling
+        shell: pwsh
+        run: ./scripts/verify-xquic-source-contract.ps1 -XquicRoot third_party/xquic
+
+      - name: Install libevent for XQUIC native transport test apps
+        shell: pwsh
+        run: |
+          $vcpkgRoot = $env:VCPKG_INSTALLATION_ROOT
+          if ([string]::IsNullOrWhiteSpace($vcpkgRoot)) { $vcpkgRoot = $env:VCPKG_ROOT }
+          if ([string]::IsNullOrWhiteSpace($vcpkgRoot)) { $vcpkgRoot = "C:\vcpkg" }
+          $vcpkg = Join-Path $vcpkgRoot "vcpkg.exe"
+          if (-not (Test-Path $vcpkg)) {
+            $command = Get-Command vcpkg.exe -ErrorAction Stop
+            $vcpkg = $command.Source
+            $vcpkgRoot = Split-Path (Split-Path $vcpkg -Parent) -Parent
+          }
+          & $vcpkg install libevent:x64-windows-static --disable-metrics
+          if ($LASTEXITCODE -ne 0) { throw "vcpkg libevent installation failed." }
+          $libeventDir = Join-Path $vcpkgRoot "installed/x64-windows-static"
+          if (-not (Test-Path (Join-Path $libeventDir "include/event2/event.h"))) {
+            throw "libevent headers were not found under $libeventDir."
+          }
+          "DBSTUDIO_LIBEVENT_DIR=$libeventDir" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Record source revisions
+        shell: pwsh
+        run: |
+          "XQUIC=$(git -C third_party/xquic rev-parse HEAD)" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "BoringSSL=$(git -C third_party/boringssl rev-parse HEAD)" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "libevent=$env:DBSTUDIO_LIBEVENT_DIR (static triplet)" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+
+      - name: Configure BoringSSL x64
+        run: cmake -S third_party/boringssl -B build/boringssl -G "Visual Studio 17 2022" -A x64 -DBUILD_SHARED_LIBS=OFF
+
+      - name: Build BoringSSL static libraries
+        run: cmake --build build/boringssl --config Release --target ssl crypto --parallel 2
+
+      - name: Configure XQUIC v1.9.8 x64 with secure loopback test apps
+        shell: pwsh
+        run: |
+          $ssl = (Resolve-Path "third_party/boringssl").Path
+          $sslLibraries = @(Get-ChildItem -Path "build/boringssl" -Filter "ssl.lib" -File -Recurse)
+          $cryptoLibraries = @(Get-ChildItem -Path "build/boringssl" -Filter "crypto.lib" -File -Recurse)
+          if ($sslLibraries.Count -ne 1) { throw "Expected exactly one BoringSSL ssl.lib, found $($sslLibraries.Count)" }
+          if ($cryptoLibraries.Count -ne 1) { throw "Expected exactly one BoringSSL crypto.lib, found $($cryptoLibraries.Count)" }
+          $sslLib = $sslLibraries[0].FullName
+          $cryptoLib = $cryptoLibraries[0].FullName
+          "BoringSSL SSL library: $sslLib" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "BoringSSL crypto library: $cryptoLib" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          cmake -S third_party/xquic -B build/xquic -G "Visual Studio 17 2022" -A x64 -DSSL_TYPE=boringssl "-DSSL_INC_PATH=$ssl/include" "-DSSL_LIB_PATH=$sslLib;$cryptoLib" "-DLIBEVENT_DIR=$env:DBSTUDIO_LIBEVENT_DIR" -DCMAKE_C_STANDARD=11 -DCMAKE_C_STANDARD_REQUIRED=ON -DXQC_ENABLE_TESTING=ON -DXQC_ENABLE_WEBTRANSPORT=OFF
+
+      - name: Build XQUIC static library and native client/server test apps
+        run: cmake --build build/xquic --config Release --target xquic-static test_server test_client --parallel 2
+
+      - name: Run encrypted QUIC v1 stream, DATAGRAM and certificate-pin loopback tests
+        shell: pwsh
+        run: ./scripts/run-xquic-loopback.ps1 -BuildRoot build/xquic -Port 18443
+
+      - name: Remove ephemeral private keys before publishing test evidence
+        if: always()
+        shell: pwsh
+        run: |
+          $evidence = "build/xquic/loopback-evidence"
+          if (Test-Path $evidence) {
+            Get-ChildItem -Path $evidence -Filter "server.key" -File -Recurse | Remove-Item -Force
+            Get-ChildItem -Path $evidence -Filter "*.pfx" -File -Recurse | Remove-Item -Force
+          }
+
+      - name: Upload XQUIC loopback evidence
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: xquic-windows-loopback-evidence
+          path: build/xquic/loopback-evidence
+          if-no-files-found: warn
+          retention-days: 1

@@ -1,7 +1,7 @@
 # dB Studio — avaliação de bibliotecas QUIC
 
 Data da avaliação: 10/11/2026  
-Estado: decisão provisória para prova de conceito; nenhuma biblioteca foi integrada ao produto.
+Estado: XQUIC v1.9.8 é a biblioteca escolhida pelo projeto. A integração ainda não está concluída nem aprovada para uso de campo.
 
 ## Critérios obrigatórios
 
@@ -9,39 +9,9 @@ A biblioteca precisa oferecer QUIC v1 com TLS 1.3, QUIC DATAGRAM (RFC 9221), str
 
 Uma página de suporte a plataforma não substitui um build real em cada SDK/arquitetura. Uma API de validação de certificado do servidor também não prova, por si só, autenticação mútua de certificados de cliente.
 
-## Comparação documental
+## Decisão do projeto
 
-| Biblioteca | Plataformas declaradas | DATAGRAM RFC 9221 | Linguagem/API | Licença | Avaliação |
-|---|---|---|---|---|---|
-| XQUIC | Windows, macOS, iOS, Android | Sim; documentação apresenta callbacks, MSS e xqc_datagram_send | C | Apache-2.0 | Melhor candidata para a primeira prova de conceito |
-| LSQUIC | Windows, macOS, Android; iOS não confirmado na matriz oficial consultada | Sim | C | MIT | Não atende ainda ao requisito de uma implementação compartilhada nas quatro plataformas |
-| TQUIC | Windows, macOS, iOS, Android | Não confirmado explicitamente nas páginas oficiais consultadas | Rust com APIs Rust/C/C++ | Apache-2.0 | Alternativa para comparação; confirmar DATAGRAM e sua configuração |
-| Apple Network.framework | Plataformas Apple | QUICDatagram documentado | Swift/Objective-C | API do sistema | Não resolve o servidor Windows nem os clientes Android |
-
-Fontes primárias consultadas:
-- XQUIC: https://github.com/alibaba/xquic
-- XQUIC: https://doc.xquic.org.cn/en/tutorials/what_is_xquic.html
-- XQUIC API: https://doc.xquic.org.cn/markdown/Files/xquic_8h.html
-- XQUIC plataformas: https://github.com/alibaba/xquic/blob/main/docs/Platforms.md
-- LSQUIC: https://lsquic.readthedocs.io/en/latest/
-- TQUIC: https://github.com/tencent/tquic
-- TQUIC instalação: https://tquic.net/docs/getting_started/installation/
-- Apple QUICDatagram: https://developer.apple.com/documentation/network/quicdatagram
-- RFC 9221: https://www.rfc-editor.org/rfc/rfc9221.html
-
-## Decisão provisória
-
-**XQUIC será a primeira biblioteca avaliada em uma prova de conceito isolada.** A escolha é apenas para POC, não é uma aprovação para produção nem um compromisso de dependência. A documentação pública consultada é a que melhor cobre simultaneamente as quatro plataformas e expõe uma API explícita de datagramas.
-
-A documentação oficial mostra:
-- suporte a QUIC v1 e integração TLS 1.3;
-- suporte ao recurso de datagramas não confiáveis;
-- callbacks de leitura/escrita/perda e notificação de MSS;
-- API xqc_datagram_send e xqc_datagram_get_mss;
-- callback de verificação de certificado do peer no cliente;
-- builds documentados para Windows, macOS, Android e iOS;
-- dependência de CMake e BoringSSL ou BabaSSL;
-- licença Apache-2.0.
+**XQUIC v1.9.8 é a implementação QUIC selecionada para o dB Studio.** Não será conduzida uma trilha comparativa com MsQuic ou outras bibliotecas. A versão fica fixada no commit `b2d1f2ca05d3456614838c82bf50cafe5c060262`, com licença Apache-2.0 declarada no repositório upstream. A escolha não substitui a necessidade de validar build, API, TLS, DATAGRAM, autenticação, dependências e comportamento nas plataformas do produto.
 
 ## Bloqueios que a POC precisa resolver antes de integrar
 
@@ -71,3 +41,96 @@ A documentação oficial mostra:
 ## Critério de aprovação
 
 A POC só pode ser promovida a integração quando os bloqueios acima tiverem evidências reproduzíveis, builds verdes nas quatro plataformas, testes adversariais aprovados, revisão de licença/dependências e confirmação de segurança. Até lá, XQUIC permanece apenas candidata de POC e o transporte de produção continua desabilitado.
+
+
+## Atualização de baseline da POC — 16/11/2026
+
+A release pública mais recente encontrada durante esta revisão é **XQUIC v1.9.8**, publicada em 19/10/2026. O ref GitHub `refs/tags/v1.9.8` resolve atualmente para o commit:
+
+```text
+b2d1f2ca05d3456614838c82bf50cafe5c060262
+```
+
+Esse SHA deve ser usado como baseline reproduzível da POC, em vez de referenciar `main` ou uma tag móvel. A release informa correções recentes no transporte, validação de parâmetros de transporte e tratamento de early data/tickets inválidos. Isso é sinal favorável para avaliação, mas não constitui auditoria de segurança nem prova de que 0-RTT esteja desabilitado por padrão.
+
+### Decisão de engenharia
+
+- **Prosseguir com XQUIC v1.9.8 apenas em uma POC isolada**, fixada no SHA acima.
+- Não adicionar XQUIC ao CMake principal nem ao binário distribuível enquanto a matriz de builds e licenças não estiver aprovada.
+- Não ativar 0-RTT; a configuração deve ser explicitamente desabilitada e coberta por teste negativo.
+- Usar a API QUIC DATAGRAM apenas para áudio; autenticação, atribuição AUX e comandos devem usar streams confiáveis após handshake autenticado.
+- Manter o codec `AudioPacketCodec.h` como formato interno do payload, nunca como mecanismo de autenticação ou criptografia.
+- A camada de transporte deve expor uma interface pequena e independente da biblioteca, para permitir substituição caso XQUIC falhe em iOS/Android ou na revisão de licença.
+
+### Portões antes de integrar
+
+1. Checkout pelo SHA fixo e captura recursiva de submódulos; registrar SHA de cada dependência e SBOM.
+2. Inspecionar o código da versão fixada para confirmar opções de criptografia, callbacks de certificado, autenticação de cliente e controle de early data; não confiar apenas na documentação.
+3. Compilar exemplos upstream sem alterações primeiro; depois criar um cliente/servidor mínimo do dB Studio em Windows x64.
+4. Confirmar negociação QUIC v1 + DATAGRAM em ambas as direções e provar rejeição de certificado inválido, expirado e identidade incorreta.
+5. Confirmar que credencial revogada não estabelece sessão autorizada e que o servidor ignora qualquer AUX/role informado pelo cliente.
+6. Repetir a prova no Android arm64; só então iniciar o cliente iOS com a mesma interface de transporte.
+7. Comparar tamanho final de datagrama com MTU real: o codec atual gera no máximo 1072 bytes de payload de aplicação, mas cabeçalhos QUIC/UDP/IP precisam ser contabilizados separadamente.
+8. Testar perda, reorder, duplicação, jitter, suspensão/retomada Android, mudança de IP e shutdown concorrente antes de integrar ao motor JUCE.
+
+### Regra de implementação
+
+XQUIC é a trilha de implementação do produto. Se surgir um bloqueio técnico, a equipe deve resolver ou documentar formalmente o bloqueio antes de qualquer mudança de biblioteca; não iniciar comparativos paralelos por padrão. Não usar UDP próprio, criptografia caseira, fallback em texto claro ou modo sem criptografia.
+
+**Estado:** XQUIC ainda não está integrada; nenhum tráfego QUIC do dB Studio foi transmitido e nenhum requisito de segurança foi marcado como aprovado.
+
+
+## Verificação de viabilidade Windows — 23/11/2026
+
+A leitura direta de `docs/Platforms.md` no próprio tag **v1.9.8** revelou uma inconsistência importante: o parágrafo introdutório lista Windows entre as plataformas suportadas, mas a seção Windows ainda declara explicitamente que o suporte se limita a v1.1.0–v1.3.0 e que v1.4.0 não oferece suporte temporário. A seção não confirma que o suporte foi restaurado nas versões posteriores. Portanto, não é correto considerar Windows x64 validado para v1.9.8 com base apenas na lista geral de plataformas.
+
+Para transformar essa incerteza em evidência executável, foi adicionado o workflow isolado `.github/workflows/xquic-windows-poc.yml`. Ele fixa XQUIC no SHA `b2d1f2ca05d3456614838c82bf50cafe5c060262`, fixa também o snapshot BoringSSL usado na tentativa e tenta compilar a biblioteca estática x64 em runner Windows 2022. O workflow não adiciona dependências ao produto nem ao CMake principal.
+
+### Gate obrigatório
+
+- Se o build falhar por incompatibilidade de plataforma/código upstream, manter XQUIC fora do Desktop Windows e registrar o erro exato; não contornar com UDP próprio, modo sem criptografia ou fallback em texto claro.
+- Se o build passar, isso prova somente compilação da biblioteca. Ainda será necessário construir e executar um cliente-servidor dB Studio real, negociar QUIC v1/DATAGRAM, validar TLS 1.3 e identidade, desabilitar 0-RTT, testar revogação e autorização AUX.
+- O BoringSSL fixado no workflow é um snapshot de POC, não uma aprovação de dependência para distribuição. Licença, avisos, SBOM e atualização segura continuam pendentes.
+- Nenhuma integração de produção deve ser ativada antes de o gate Windows e os gates Android/iOS/macOS serem comprovados.
+
+**Estado em 23/11/2026:** risco de compatibilidade Windows identificado; build de viabilidade isolado adicionado, resultado ainda não disponível. XQUIC continua escolhida pelo projeto, mas não aprovada para integração de produção.
+
+
+## Resultado da primeira compilação Windows — 23/11/2026
+
+A execução GitHub Actions **XQUIC pinned Windows feasibility POC #5** chegou até a compilação da biblioteca. BoringSSL compilou, a configuração CMake do XQUIC passou e os arquivos C começaram a ser compilados no runner Windows Server 2022. A falha não foi falta de suporte de plataforma nem falha de TLS: o MSVC rejeitou as declarações `_Static_assert` de `src/transport/xqc_conn.h` porque a configuração anterior não solicitava explicitamente o padrão C11. Os erros primários foram C2143/C2059 nas linhas 234–240; os demais erros em cascata derivaram desse ponto.
+
+### Correção aplicada
+
+O workflow agora configura explicitamente:
+
+```text
+-DCMAKE_C_STANDARD=11
+-DCMAKE_C_STANDARD_REQUIRED=ON
+```
+
+Isso habilita o modo C11 no MSVC, necessário para as verificações estáticas usadas pelo XQUIC. A alteração é restrita ao workflow da POC e não modifica fontes upstream nem o CMake principal do dB Studio.
+
+**Estado:** causa identificada e correção enviada; aguardar a nova execução. Ainda não há aprovação do build XQUIC até o job terminar com sucesso.
+
+
+A primeira repetição após habilitar C11 foi interrompida por uma atualização subsequente do PR: a política `cancel-in-progress: true` agrupava as execuções do PR e cancelava a compilação em andamento. A política do workflow foi alterada para `cancel-in-progress: false`, preservando a execução de viabilidade até o resultado. A próxima execução deve validar conjuntamente o ajuste C11 e a política de não cancelamento.
+
+
+## Resultado da POC Windows x64 com C11 — 23/11/2026
+
+A execução GitHub Actions **XQUIC pinned Windows feasibility POC #6** concluiu com sucesso no runner Windows 2022, usando XQUIC v1.9.8 no SHA `b2d1f2ca05d3456614838c82bf50cafe5c060262` e o snapshot BoringSSL fixado no workflow. O log confirma a geração de `xquic-static.lib` em `build/xquic/Release`. A compilação passou após habilitar explicitamente C11 para MSVC.
+
+Evidência: [workflow run 45272386029](https://github.com/DbStudioProducers/dB-Studio-Windows/actions/runs/45272386029). Isso confirma somente que a biblioteca estática compila no runner Windows x64. O job não executa handshake, não inicia servidor/cliente, não negocia DATAGRAM e não prova TLS, autenticação, autorização ou transferência de áudio.
+
+### Revisão adicional antes de integrar
+
+Na leitura do CMake upstream fixado, foi observado que o caminho `SSL_TYPE=boringssl` adiciona `-DNOCRYPT=1`. A busca no código-fonte XQUIC pelo identificador `NOCRYPT` encontrou a definição no CMake, mas não demonstrou outros usos no repositório. O significado e o efeito efetivo dessa definição precisam ser esclarecidos por inspeção do pré-processamento/compilação e por teste de handshake criptografado; não presumir que o build bem-sucedido prove criptografia ativa. Nenhum modo sem criptografia será aceito no produto.
+
+### Estado atualizado
+
+- Windows x64: **compilação da biblioteca estática aprovada** (POC isolada).
+- Android: APK de diagnóstico compila; não é receptor QUIC nem prova de áudio remoto.
+- Desktop: build nativo passa; transporte ainda não integrado.
+- Cliente-servidor XQUIC, TLS 1.3 validado, QUIC DATAGRAM bidirecional, autenticação de dispositivo, autorização AUX em rede e áudio remoto: **pendentes**.
+- Execução mais recente da POC no head `d8b2e205109a041e2e0021578b16c63261c50c29`: ainda em andamento na última consulta; não tratada como aprovada.

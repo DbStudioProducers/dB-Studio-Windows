@@ -1,0 +1,175 @@
+diff --git a/tests/CMakeLists.txt b/tests/CMakeLists.txt
+--- a/tests/CMakeLists.txt
++++ b/tests/CMakeLists.txt
+@@ -55,6 +55,6 @@
+     set(APP_DEPEND_LIBS
+         xquic-static
+         ${SSL_LIB_PATH}
+         ${LIBEVENT_LIBRARY}
+-        -lm
++        bcrypt
+         CACHE STRING "xquic app depend libs")
+diff --git a/src/tls/xqc_tls_ctx.c b/src/tls/xqc_tls_ctx.c
+--- a/src/tls/xqc_tls_ctx.c
++++ b/src/tls/xqc_tls_ctx.c
+@@ -93,8 +93,9 @@
+         | SSL_OP_SINGLE_ECDH_USE
+ #ifdef SSL_OP_NO_ANTI_REPLAY
+         | SSL_OP_NO_ANTI_REPLAY
+ #endif
+         ;
+     SSL_CTX_set_options(ssl_ctx, ssl_opts);
++    SSL_CTX_set_options(ssl_ctx, SSL_OP_NO_TICKET);
+ 
+     /* Save RAM by releasing read and write buffers when they're empty */
+diff --git a/tests/test_server.c b/tests/test_server.c
+--- a/tests/test_server.c
++++ b/tests/test_server.c
+@@ -3247,6 +3247,9 @@
+     xqc_config_t config;
+     if (xqc_engine_get_default_config(&config, XQC_ENGINE_SERVER) < 0) {
+         return -1;
+     }
++    /* Keep this POC server on RFC 9000 QUIC v1 only. */
++    config.support_version_count = 1;
++    config.support_version_list[0] = XQC_VERSION_V1_VALUE;
+ 
+     config.enable_h3_ext = g_enable_h3_ext;
+ 
+diff --git a/tests/test_client.c b/tests/test_client.c
+--- a/tests/test_client.c
++++ b/tests/test_client.c
+@@ -13,6 +13,8 @@
+ #include <time.h>
+ #include <inttypes.h>
+ #include <openssl/ssl.h>
++#include <openssl/pem.h>
++#include <openssl/x509.h>
+ #include <xquic/xquic.h>
+ #include <xquic/xquic_typedef.h>
+ #include <xquic/xqc_errno.h>
+@@ -4911,7 +4913,52 @@
+ int 
+ xqc_client_cert_verify(const unsigned char *certs[], 
+     const size_t cert_len[], size_t certs_len, void *conn_user_data)
+ {
+-    /* self-signed cert used in test cases, return >= 0 means success */
+-    return 0;
++    FILE *fp = NULL;
++    X509 *expected = NULL;
++    unsigned char *expected_der = NULL;
++    unsigned char *cursor = NULL;
++    int expected_len = 0;
++    int encoded_len = 0;
++    int matches = 0;
++
++    (void) conn_user_data;
++    if (certs == NULL || cert_len == NULL || certs_len == 0 || certs[0] == NULL) {
++        printf("[xquic-poc]|certificate_pin_missing|\n");
++        return XQC_ERROR;
++    }
++
++    fp = fopen("expected_server.crt", "rb");
++    if (fp == NULL) {
++        printf("[xquic-poc]|expected_certificate_missing|\n");
++        return XQC_ERROR;
++    }
++    expected = PEM_read_X509(fp, NULL, NULL, NULL);
++    fclose(fp);
++    if (expected == NULL) {
++        printf("[xquic-poc]|expected_certificate_invalid|\n");
++        return XQC_ERROR;
++    }
++
++    expected_len = i2d_X509(expected, NULL);
++    if (expected_len > 0) {
++        expected_der = (unsigned char *) malloc((size_t) expected_len);
++    }
++    if (expected_der != NULL) {
++        cursor = expected_der;
++        encoded_len = i2d_X509(expected, &cursor);
++        matches = encoded_len == expected_len
++            && cert_len[0] == (size_t) expected_len
++            && memcmp(certs[0], expected_der, (size_t) expected_len) == 0;
++    }
++
++    free(expected_der);
++    X509_free(expected);
++    if (matches) {
++        printf("[xquic-poc]|certificate_pin_match|\n");
++        return XQC_OK;
++    }
++
++    printf("[xquic-poc]|certificate_pin_mismatch|\n");
++    return XQC_ERROR;
+ }
+@@ -6363,5 +6408,5 @@
+         } else {
+             cid = xqc_connect(ctx.engine, &conn_settings, user_conn->token, user_conn->token_len,
+-                            server_addr, g_no_crypt, &conn_ssl_config, user_conn->peer_addr, 
++                            g_host, 0, &conn_ssl_config, user_conn->peer_addr,
+                             user_conn->peer_addrlen, transport_alpn, user_conn);
+         }
+
+diff --git a/tests/test_server.c b/tests/test_server.c
+--- a/tests/test_server.c
++++ b/tests/test_server.c
+@@ -2727,5 +2727,6 @@ int main(int argc, char *argv[]) {
+     /* line-buffer stdout so runtime markers are flushed promptly for case_test.sh to grep */
+     setvbuf(stdout, NULL, _IOLBF, 0);
++    fprintf(stderr, "[xquic-stage] main-enter\n");
+ 
+     signal(SIGINT, stop);
+     signal(SIGTERM, stop);
+@@ -2977,12 +2978,15 @@ int main(int argc, char *argv[]) {
+     }
+ 
++    fprintf(stderr, "[xquic-stage] arguments-parsed\n");
+     memset(&ctx, 0, sizeof(ctx));
+ 
+     char g_session_ticket_file[] = "session_ticket.key";
+ 
+     xqc_server_open_keylog_file(&ctx);
+     xqc_server_open_log_file(&ctx);
+ 
++    fprintf(stderr, "[xquic-stage] before-platform-init\n");
+     xqc_platform_init_env();
++    fprintf(stderr, "[xquic-stage] after-platform-init\n");
+ 
+     xqc_engine_ssl_config_t  engine_ssl_config;
+@@ -3313,7 +3320,9 @@ int main(int argc, char *argv[]) {
+     }
+ 
++    fprintf(stderr, "[xquic-stage] before-engine-create\n");
+     ctx.engine = xqc_engine_create(XQC_ENGINE_SERVER, &config, &engine_ssl_config,
+                                    &callback, &tcbs, &ctx);
++    fprintf(stderr, "[xquic-stage] after-engine-create\n");
+     if (ctx.engine == NULL) {
+         printf("error create engine\n");
+         return -1;
+@@ -3387,6 +3396,8 @@ int main(int argc, char *argv[]) {
+ 
+     /* init http3 context */
++    fprintf(stderr, "[xquic-stage] before-h3-init\n");
+     xqc_int_t ret = xqc_h3_ctx_init(ctx.engine, &h3_cbs);
++    fprintf(stderr, "[xquic-stage] after-h3-init ret=%d\n", ret);
+     if (ret != XQC_OK) {
+         printf("init h3 context error, ret: %d\n", ret);
+         return ret;
+@@ -3433,13 +3444,16 @@ int main(int argc, char *argv[]) {
+     ctx.quic_lb_ctx.cid_len = XQC_MAX_CID_LEN;
+ 
++    fprintf(stderr, "[xquic-stage] before-socket-create\n");
+     ctx.fd = xqc_server_create_socket(server_addr, server_port);
++    fprintf(stderr, "[xquic-stage] after-socket-create fd=%d\n", (int)ctx.fd);
+     if (ctx.fd < 0) {
+         printf("xqc_create_socket error\n");
+         return 0;
+     }
+ 
+     ctx.ev_socket = event_new(eb, ctx.fd, EV_READ | EV_PERSIST, xqc_server_socket_event_callback, &ctx);
+ 
+     event_add(ctx.ev_socket, NULL);
+     last_snd_ts = 0;
++    fprintf(stderr, "[xquic-stage] before-event-loop\n");
+     event_base_dispatch(eb);
