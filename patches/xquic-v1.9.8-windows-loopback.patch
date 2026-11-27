@@ -110,3 +110,66 @@ diff --git a/tests/test_client.c b/tests/test_client.c
 +                            g_host, 0, &conn_ssl_config, user_conn->peer_addr,
                              user_conn->peer_addrlen, transport_alpn, user_conn);
          }
+
+diff --git a/tests/test_server.c b/tests/test_server.c
+--- a/tests/test_server.c
++++ b/tests/test_server.c
+@@ -2727,6 +2727,7 @@ int main(int argc, char *argv[]) {
+     /* line-buffer stdout so runtime markers are flushed promptly for case_test.sh to grep */
+     setvbuf(stdout, NULL, _IOLBF, 0);
++    fprintf(stderr, "[xquic-stage] main-enter\\n");
+ 
+     signal(SIGINT, stop);
+     signal(SIGTERM, stop);
+@@ -2977,11 +2978,15 @@ int main(int argc, char *argv[]) {
+     }
+ 
++    fprintf(stderr, "[xquic-stage] arguments-parsed\\n");
+     memset(&ctx, 0, sizeof(ctx));
+ 
+     char g_session_ticket_file[] = "session_ticket.key";
+ 
+     xqc_server_open_keylog_file(&ctx);
+     xqc_server_open_log_file(&ctx);
+ 
++    fprintf(stderr, "[xquic-stage] before-platform-init\\n");
+     xqc_platform_init_env();
++    fprintf(stderr, "[xquic-stage] after-platform-init\\n");
+ 
+     xqc_engine_ssl_config_t  engine_ssl_config;
+@@ -3313,10 +3318,12 @@ int main(int argc, char *argv[]) {
+     }
+ 
++    fprintf(stderr, "[xquic-stage] before-engine-create\\n");
+     ctx.engine = xqc_engine_create(XQC_ENGINE_SERVER, &config, &engine_ssl_config,
+                                    &callback, &tcbs, &ctx);
++    fprintf(stderr, "[xquic-stage] after-engine-create\\n");
+     if (ctx.engine == NULL) {
+         printf("error create engine\\n");
+         return -1;
+@@ -3387,10 +3394,12 @@ int main(int argc, char *argv[]) {
+ 
+     /* init http3 context */
++    fprintf(stderr, "[xquic-stage] before-h3-init\\n");
+     xqc_int_t ret = xqc_h3_ctx_init(ctx.engine, &h3_cbs);
++    fprintf(stderr, "[xquic-stage] after-h3-init ret=%d\\n", ret);
+     if (ret != XQC_OK) {
+         printf("init h3 context error, ret: %d\\n", ret);
+         return ret;
+@@ -3433,11 +3442,14 @@ int main(int argc, char *argv[]) {
+     ctx.quic_lb_ctx.cid_len = XQC_MAX_CID_LEN;
+ 
++    fprintf(stderr, "[xquic-stage] before-socket-create\\n");
+     ctx.fd = xqc_server_create_socket(server_addr, server_port);
++    fprintf(stderr, "[xquic-stage] after-socket-create fd=%d\\n", (int)ctx.fd);
+     if (ctx.fd < 0) {
+         printf("xqc_create_socket error\\n");
+         return 0;
+     }
+ 
+     ctx.ev_socket = event_new(eb, ctx.fd, EV_READ | EV_PERSIST, xqc_server_socket_event_callback, &ctx);
+ 
+     event_add(ctx.ev_socket, NULL);
+     last_snd_ts = 0;
++    fprintf(stderr, "[xquic-stage] before-event-loop\\n");
+     event_base_dispatch(eb);
