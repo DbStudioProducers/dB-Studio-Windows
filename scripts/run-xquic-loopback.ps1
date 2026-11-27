@@ -23,6 +23,17 @@ if ($env:DBSTUDIO_LIBEVENT_DIR) {
 $evidence = Join-Path $build "loopback-evidence"
 New-Item -ItemType Directory -Path $evidence -Force | Out-Null
 
+# Native STATUS_STACK_BUFFER_OVERRUN failures do not reliably write to redirected
+# stdout/stderr. Enable per-image Windows Error Reporting dumps on this ephemeral
+# CI runner so the failing XQUIC process can be diagnosed from a full dump.
+$dumpDirectory = Join-Path $evidence "crash-dumps"
+New-Item -ItemType Directory -Path $dumpDirectory -Force | Out-Null
+$werKey = "HKCU:\\Software\\Microsoft\\Windows\\Windows Error Reporting\\LocalDumps\\test_server.exe"
+New-Item -Path $werKey -Force | Out-Null
+New-ItemProperty -Path $werKey -Name DumpFolder -PropertyType ExpandString -Value $dumpDirectory -Force | Out-Null
+New-ItemProperty -Path $werKey -Name DumpType -PropertyType DWord -Value 2 -Force | Out-Null
+New-ItemProperty -Path $werKey -Name DumpCount -PropertyType DWord -Value 3 -Force | Out-Null
+
 function New-PocCertificate {
     $rsa = [System.Security.Cryptography.RSA]::Create(2048)
     $certificate = $null
