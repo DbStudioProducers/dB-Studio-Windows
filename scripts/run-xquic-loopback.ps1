@@ -28,7 +28,7 @@ New-Item -ItemType Directory -Path $evidence -Force | Out-Null
 # CI runner so the failing XQUIC process can be diagnosed from a full dump.
 $dumpDirectory = Join-Path $evidence "crash-dumps"
 New-Item -ItemType Directory -Path $dumpDirectory -Force | Out-Null
-$werKey = "HKCU:\\Software\\Microsoft\\Windows\\Windows Error Reporting\\LocalDumps\\test_server.exe"
+$werKey = "HKCU:\Software\Microsoft\Windows\Windows Error Reporting\LocalDumps\test_server.exe"
 New-Item -Path $werKey -Force | Out-Null
 New-ItemProperty -Path $werKey -Name DumpFolder -PropertyType ExpandString -Value $dumpDirectory -Force | Out-Null
 New-ItemProperty -Path $werKey -Name DumpType -PropertyType DWord -Value 2 -Force | Out-Null
