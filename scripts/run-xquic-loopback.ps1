@@ -91,6 +91,57 @@ function Write-ScenarioCredentials {
     [System.IO.File]::WriteAllText((Join-Path $Directory "expected_server.crt"), $ExpectedCertificatePem, $utf8)
 }
 
+function Write-CrashDiagnostics {
+    param([string]$Directory, [string]$Name, [string]$DumpDirectory)
+
+    $diagnostics = Join-Path $Directory "$Name-crash-diagnostics.txt"
+    $report = [System.Collections.Generic.List[string]]::new()
+    $report.Add("Process: test_server.exe")
+    $report.Add("Captured: $([DateTime]::UtcNow.ToString('o'))")
+    $report.Add("WER dump registry: $werKey")
+    try {
+        $registry = Get-ItemProperty -Path $werKey -ErrorAction Stop
+        $report.Add("WER DumpType=$($registry.DumpType) DumpCount=$($registry.DumpCount) DumpFolder=$($registry.DumpFolder)")
+    }
+    catch {
+        $report.Add("WER registry read failed: $($_.Exception.Message)")
+    }
+
+    try {
+        $events = Get-WinEvent -FilterHashtable @{
+            LogName = "Application"
+            Id = @(1000, 1001, 1002)
+            StartTime = [DateTime]::Now.AddMinutes(-10)
+        } -MaxEvents 300 -ErrorAction Stop |
+            Where-Object { $_.Message -match "test_server\\.exe" }
+        if ($events) {
+            foreach ($event in $events) {
+                $report.Add("EVENT $($event.TimeCreated.ToString('o')) ID=$($event.Id) PROVIDER=$($event.ProviderName)")
+                $report.Add($event.Message)
+            }
+        }
+        else {
+            $report.Add("No matching Application Error / Windows Error Reporting events found.")
+        }
+    }
+    catch {
+        $report.Add("Application event log query failed: $($_.Exception.Message)")
+    }
+
+    try {
+        $dumps = @(Get-ChildItem -Path $DumpDirectory -File -ErrorAction SilentlyContinue)
+        foreach ($dump in $dumps) {
+            $report.Add("DUMP $($dump.FullName) SIZE=$($dump.Length)")
+        }
+        if ($dumps.Count -eq 0) { $report.Add("No WER dump file was created.") }
+    }
+    catch {
+        $report.Add("Dump inventory failed: $($_.Exception.Message)")
+    }
+
+    [System.IO.File]::WriteAllLines($diagnostics, $report, [System.Text.UTF8Encoding]::new($false))
+}
+
 function Start-PocServer {
     param([string]$Directory, [string[]]$Arguments, [string]$Name)
     $stdout = Join-Path $Directory "$Name-server.stdout.log"
@@ -105,6 +156,7 @@ function Start-PocServer {
         $outText = if (Test-Path $stdout) { Get-Content $stdout -Raw } else { "" }
         $errText = if (Test-Path $stderr) { Get-Content $stderr -Raw } else { "" }
         $xquicLog = if (Test-Path $logFile) { Get-Content $logFile -Raw } else { "" }
+        Write-CrashDiagnostics $Directory $Name $dumpDirectory
         throw "XQUIC $Name server exited during startup (exit=$exitCode). executable=$serverExe workingDirectory=$Directory args=$($serverArguments -join ' ') stdout=$outText stderr=$errText xquicLog=$xquicLog"
     }
     return $process
